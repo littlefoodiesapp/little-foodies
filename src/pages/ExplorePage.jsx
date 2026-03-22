@@ -26,6 +26,9 @@ const FILTERS = [
 
 const BG_COLORS = ['#fff3ee','#fefae8','#e6f7f5','#fef0f8','#e8f4fd','#f0fdf4']
 
+const font = { fontFamily: "'Montserrat', sans-serif" }
+const hFont = { fontFamily: "'IntroRust', cursive" }
+
 export default function ExplorePage() {
   const { user } = useAuth()
   const [restaurants, setRestaurants] = useState([])
@@ -34,7 +37,10 @@ export default function ExplorePage() {
   const [loading, setLoading]         = useState(true)
 
   useEffect(() => {
-    getRestaurants().then(({ data, error }) => { setRestaurants(data || []); setLoading(false) })
+    getRestaurants().then(({ data, error }) => {
+      setRestaurants(data || [])
+      setLoading(false)
+    })
   }, [])
 
   function toggleFilter(id) {
@@ -57,41 +63,39 @@ export default function ExplorePage() {
   })
 
   return (
-    <div style={{ background: '#f9fafb', minHeight: '100vh', paddingBottom: 80 }}>
+    <div style={{ ...font, background: '#f9fafb', minHeight: '100vh', paddingBottom: 80 }}>
 
       {/* Header */}
       <div style={{ background: '#fff', padding: '16px 16px 12px', borderBottom: '0.5px solid #e5e7eb' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-          <img src={LOGO} alt="Little Foodies" style={{ height: 36, width: 'auto' }} />
-          <div style={{ fontSize: 12, fontWeight: 500, color: '#c2410c',
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+          <img src={LOGO} alt="Little Foodies" style={{ height: 48, width: 'auto' }} />
+          <div style={{ fontSize: 11, fontWeight: 600, color: '#c2410c',
             background: BRAND.orLt, border: `0.5px solid ${BRAND.orBd}`,
-            padding: '4px 10px', borderRadius: 20 }}>
-            📍 Union · Clark · Cranford, NJ
+            padding: '4px 10px', borderRadius: 20, ...font }}>
+            📍 Union · Clark · Cranford
           </div>
         </div>
-        <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 12 }}>
-          Find family-friendly restaurants near you
+        <p style={{ fontSize: 12, color: '#6b7280', marginBottom: 10, ...font }}>
+          Family-friendly restaurants near you
         </p>
-
-        {/* Location bar */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8,
           background: '#f9fafb', border: '0.5px solid #e5e7eb',
-          borderRadius: 10, padding: '8px 12px', marginBottom: 4 }}>
+          borderRadius: 10, padding: '8px 12px' }}>
           <div style={{ width: 8, height: 8, background: BRAND.orange, borderRadius: '50%', flexShrink: 0 }} />
-          <span style={{ fontSize: 13, color: '#6b7280' }}>Searching near Union, NJ</span>
+          <span style={{ fontSize: 12, color: '#6b7280', ...font }}>Searching near Union, NJ</span>
         </div>
       </div>
 
-      {/* Confirm amenities banner */}
+      {/* Points banner */}
       <div style={{ margin: '12px 16px 0', background: BRAND.blLt,
         border: `0.5px solid ${BRAND.blBd}`, borderRadius: 12,
-        padding: '12px 14px', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-        <span style={{ fontSize: 20, flexShrink: 0 }}>🗳️</span>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 13, fontWeight: 500, color: '#0552a0', marginBottom: 3 }}>
+        padding: '11px 14px', display: 'flex', gap: 10, alignItems: 'center' }}>
+        <span style={{ fontSize: 18, flexShrink: 0 }}>🗳️</span>
+        <div>
+          <div style={{ fontSize: 12, fontWeight: 600, color: '#0552a0', ...font }}>
             Help verify family amenities
           </div>
-          <div style={{ fontSize: 12, color: '#0552a0', opacity: .85 }}>
+          <div style={{ fontSize: 11, color: '#0552a0', opacity: .8, ...font }}>
             Earn <strong>5 pts</strong> per vote · 5 in a row = <strong>+20 pt bonus!</strong>
           </div>
         </div>
@@ -102,72 +106,66 @@ export default function ExplorePage() {
         overflowX: 'auto', scrollbarWidth: 'none' }}>
         {FILTERS.map(f => (
           <div key={f.id} onClick={() => toggleFilter(f.id)}
-            style={{ display: 'flex', alignItems: 'center', gap: 5,
+            style={{ display: 'flex', alignItems: 'center', gap: 4,
               padding: '6px 11px', borderRadius: 20, whiteSpace: 'nowrap',
               border: `1.5px solid ${activeFilters.has(f.id) ? BRAND.orange : '#e5e7eb'}`,
               background: activeFilters.has(f.id) ? BRAND.orLt : '#fff',
               color: activeFilters.has(f.id) ? '#c2410c' : '#6b7280',
-              fontSize: 12, fontWeight: 500, cursor: 'pointer', flexShrink: 0 }}>
-            <span style={{ fontSize: 13 }}>{f.icon}</span>{f.label}
+              fontSize: 11, fontWeight: 600, cursor: 'pointer', flexShrink: 0, ...font }}>
+            <span style={{ fontSize: 12 }}>{f.icon}</span>{f.label}
           </div>
         ))}
       </div>
 
-      {/* Results count */}
-      <div style={{ fontSize: 13, color: '#6b7280', padding: '0 16px', marginBottom: 10 }}>
+      {/* Count */}
+      <div style={{ fontSize: 11, fontWeight: 600, color: '#9ca3af',
+        padding: '0 16px', marginBottom: 10, textTransform: 'uppercase',
+        letterSpacing: '.06em', ...font }}>
         {loading ? 'Loading...' : `${visible.length} restaurant${visible.length !== 1 ? 's' : ''} found`}
       </div>
 
-      {/* Restaurant cards */}
+      {/* Cards */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '0 16px' }}>
         {visible.map((r, i) => {
           const verifiedAms = (r.amenities || []).filter(a => a.is_verified).slice(0, 3)
-          const isPending = r.status === 'pending'
-          const bg = BG_COLORS[i % BG_COLORS.length]
+          const isPending   = r.status === 'pending'
+          const bg          = BG_COLORS[i % BG_COLORS.length]
           return (
-            <Link key={r.id} to={`/restaurant/${r.id}`}
-              style={{ textDecoration: 'none', color: 'inherit' }}>
+            <Link key={r.id} to={`/restaurant/${r.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
               <div style={{ background: '#fff', border: '0.5px solid #e5e7eb',
-                borderRadius: 12, overflow: 'hidden',
-                transition: 'border-color .15s', cursor: 'pointer' }}>
+                borderRadius: 14, overflow: 'hidden', cursor: 'pointer' }}>
 
-                {/* Card image area */}
-                <div style={{ height: 96, background: bg,
+                {/* Image area */}
+                <div style={{ height: 90, background: bg,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 40, position: 'relative' }}>
+                  fontSize: 42, position: 'relative' }}>
                   {r.emoji || '🍽️'}
-                  {r.rating && (
-                    <div style={{ position: 'absolute', top: 8, right: 10,
-                      background: 'rgba(0,0,0,.45)', color: '#fff',
-                      fontSize: 11, fontWeight: 500, padding: '2px 7px', borderRadius: 20 }}>
-                      ⭐ {r.rating}
-                    </div>
-                  )}
                 </div>
 
                 <div style={{ padding: '11px 13px' }}>
-                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 2 }}>
-                    <div style={{ fontSize: 15, fontWeight: 500, color: '#111827' }}>{r.name}</div>
+                  <div style={{ display: 'flex', alignItems: 'flex-start',
+                    justifyContent: 'space-between', marginBottom: 2 }}>
+                    <div style={{ fontSize: 15, fontWeight: 600, color: '#111827', ...font }}>{r.name}</div>
                     <button onClick={e => toggleFav(e, r)}
-                      style={{ background: 'none', border: 'none', fontSize: 18, cursor: 'pointer',
-                        color: favIds.has(r.id) ? BRAND.pink : '#d1d5db', padding: 0, flexShrink: 0 }}>
+                      style={{ background: 'none', border: 'none', fontSize: 18,
+                        cursor: 'pointer', color: favIds.has(r.id) ? BRAND.pink : '#d1d5db',
+                        padding: 0, flexShrink: 0, marginLeft: 8 }}>
                       {favIds.has(r.id) ? '♥' : '♡'}
                     </button>
                   </div>
 
-                  <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 8 }}>{r.cuisine}</div>
+                  <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 8, ...font }}>{r.cuisine}</div>
 
-                  {/* Tags */}
                   <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 8 }}>
                     {isPending ? (
-                      <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 20, fontWeight: 500,
-                        background: BRAND.ywLt, color: '#854d0e', border: `0.5px solid ${BRAND.ywBd}` }}>
-                        ⏳ Pending verification
+                      <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 20, fontWeight: 600,
+                        background: BRAND.ywLt, color: '#854d0e', border: `0.5px solid ${BRAND.ywBd}`, ...font }}>
+                        ⏳ Pending
                       </span>
                     ) : (
                       <>
-                        <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 20, fontWeight: 500,
-                          background: BRAND.tlLt, color: '#065f55', border: `0.5px solid ${BRAND.tlBd}` }}>
+                        <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 20, fontWeight: 600,
+                          background: BRAND.tlLt, color: '#065f55', border: `0.5px solid ${BRAND.tlBd}`, ...font }}>
                           ✓ Verified
                         </span>
                         {verifiedAms.map(a => (
@@ -183,8 +181,8 @@ export default function ExplorePage() {
 
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                     paddingTop: 8, borderTop: '0.5px solid #f3f4f6' }}>
-                    <span style={{ fontSize: 11, color: '#9ca3af' }}>{r.hours}</span>
-                    {r.city && <span style={{ fontSize: 11, color: '#9ca3af' }}>{r.city}, {r.state}</span>}
+                    <span style={{ fontSize: 10, color: '#9ca3af', ...font }}>{r.hours}</span>
+                    {r.city && <span style={{ fontSize: 10, color: '#9ca3af', ...font }}>{r.city}, {r.state}</span>}
                   </div>
                 </div>
               </div>
