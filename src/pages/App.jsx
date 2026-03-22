@@ -1,9 +1,10 @@
 import { Routes, Route, Navigate, Link, useLocation } from 'react-router-dom'
 import { useAuth } from './hooks/useAuth'
-import ExplorePage    from './pages/ExplorePage'
-import RestaurantPage from './pages/RestaurantPage'
-import ProfilePage    from './pages/ProfilePage'
-import LoginPage      from './pages/LoginPage'
+import ExplorePage         from './pages/ExplorePage'
+import RestaurantPage      from './pages/RestaurantPage'
+import ProfilePage         from './pages/ProfilePage'
+import LoginPage           from './pages/LoginPage'
+import AddRestaurantPage   from './pages/AddRestaurantPage'
 
 const font = { fontFamily: "'Montserrat', sans-serif" }
 
@@ -23,52 +24,76 @@ export default function App() {
   const hideNav = loc.pathname === '/login'
 
   return (
-    <>
-      <div style={{ paddingBottom: hideNav ? 0 : 64 }}>
+    <div style={{ position: 'relative', minHeight: '100vh' }}>
+      <div style={{ paddingBottom: hideNav ? 0 : 72 }}>
         <Routes>
           <Route path="/"               element={<ExplorePage />} />
           <Route path="/restaurant/:id" element={<RestaurantPage />} />
           <Route path="/profile"        element={user ? <ProfilePage /> : <Navigate to="/login" />} />
+          <Route path="/add"            element={user ? <AddRestaurantPage /> : <Navigate to="/login" />} />
           <Route path="/login"          element={!user ? <LoginPage /> : <Navigate to="/" />} />
         </Routes>
       </div>
 
       {!hideNav && (
         <nav style={{
-          position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)',
-          width: '100%', maxWidth: 480, background: '#fff',
-          borderTop: '0.5px solid #e5e7eb', display: 'flex', zIndex: 100,
-          boxShadow: '0 -4px 20px rgba(0,0,0,.06)'
+          position: 'fixed',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          height: 64,
+          background: '#fff',
+          borderTop: '1px solid #e5e7eb',
+          display: 'flex',
+          alignItems: 'center',
+          zIndex: 9999,
+          boxShadow: '0 -4px 20px rgba(0,0,0,.07)'
         }}>
-          {[
-            { to: '/',        icon: '🔍', label: 'Explore'  },
-            { to: '/profile', icon: '👤', label: 'Profile'  },
-          ].map(({ to, icon, label }) => (
-            <Link key={to} to={to} style={{
-              flex: 1, display: 'flex', flexDirection: 'column',
-              alignItems: 'center', padding: '9px 0 12px', gap: 2,
-              textDecoration: 'none', ...font,
-              color: loc.pathname === to ? '#f57b46' : '#9ca3af',
-              fontSize: 10, fontWeight: 600
+          <div style={{ maxWidth: 480, width: '100%', margin: '0 auto',
+            display: 'flex', alignItems: 'center' }}>
+
+            {/* Explore */}
+            <Link to="/" style={{
+              flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',
+              gap: 2, textDecoration: 'none', paddingBottom: 4,
+              color: loc.pathname === '/' ? '#f57b46' : '#9ca3af',
+              fontSize: 10, fontWeight: 600, ...font
             }}>
-              <span style={{ fontSize: 18 }}>{icon}</span>
-              {label}
+              <span style={{ fontSize: 20 }}>🔍</span>
+              Explore
             </Link>
-          ))}
-          <div style={{
-            flex: 1, display: 'flex', flexDirection: 'column',
-            alignItems: 'center', padding: '3px 0 12px', gap: 1
-          }}>
-            <div style={{
-              width: 46, height: 46, background: '#f57b46', borderRadius: '50%',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 24, color: '#fff', cursor: 'pointer', marginBottom: 1,
-              boxShadow: '0 4px 12px rgba(245,123,70,.4)'
-            }}>+</div>
-            <span style={{ fontSize: 10, color: '#9ca3af', fontWeight: 600, ...font }}>Add</span>
+
+            {/* Add restaurant — center button */}
+            <Link to="/add" style={{
+              flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',
+              gap: 2, textDecoration: 'none', paddingBottom: 4,
+              color: loc.pathname === '/add' ? '#f57b46' : '#9ca3af',
+              fontSize: 10, fontWeight: 600, ...font
+            }}>
+              <div style={{
+                width: 44, height: 44, background: '#f57b46', borderRadius: '50%',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 24, color: '#fff',
+                boxShadow: '0 4px 14px rgba(245,123,70,.45)',
+                marginBottom: 1
+              }}>+</div>
+              Add
+            </Link>
+
+            {/* Profile */}
+            <Link to={user ? "/profile" : "/login"} style={{
+              flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',
+              gap: 2, textDecoration: 'none', paddingBottom: 4,
+              color: loc.pathname === '/profile' ? '#f57b46' : '#9ca3af',
+              fontSize: 10, fontWeight: 600, ...font
+            }}>
+              <span style={{ fontSize: 20 }}>👤</span>
+              {user ? 'Profile' : 'Sign in'}
+            </Link>
+
           </div>
         </nav>
       )}
-    </>
+    </div>
   )
 }
