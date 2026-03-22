@@ -89,7 +89,7 @@ export default function ExplorePage() {
           justifyContent: 'space-between', marginBottom: 10 }}>
           <img src={LOGO} alt="Little Foodies" style={{ height: 44, width: 'auto' }} />
           <div style={{ fontSize: 11, fontWeight: 600, color: '#c2410c',
-            background: BRAND.orLt, border: ,
+            background: BRAND.orLt, border: '0.5px solid #fdc9b0',
             padding: '4px 10px', borderRadius: 20 }}>
             📍 Union · Clark · Cranford
           </div>
@@ -108,7 +108,7 @@ export default function ExplorePage() {
             placeholder="Search by zip code, city, or restaurant name..."
             style={{
               width: '100%', padding: '10px 36px 10px 36px',
-              border: ,
+              border: `1.5px solid ${search ? '#f57b46' : '#e5e7eb'}`,
               borderRadius: 10, fontSize: 12, outline: 'none',
               background: search ? '#fff' : '#f9fafb',
               boxSizing: 'border-box', ...font,
@@ -138,7 +138,7 @@ export default function ExplorePage() {
 
       {/* Points banner */}
       <div style={{ margin: '12px 16px 0', background: BRAND.blLt,
-        border: , borderRadius: 12,
+        border: '0.5px solid #9ed4f6', borderRadius: 12,
         padding: '11px 14px', display: 'flex', gap: 10, alignItems: 'center' }}>
         <span style={{ fontSize: 18, flexShrink: 0 }}>🗳️</span>
         <div>
@@ -159,7 +159,7 @@ export default function ExplorePage() {
             style={{
               display: 'flex', alignItems: 'center', gap: 4,
               padding: '6px 11px', borderRadius: 20, whiteSpace: 'nowrap',
-              border: ,
+              border: `1.5px solid ${search ? '#f57b46' : '#e5e7eb'}`,
               background: activeFilters.has(f.id) ? BRAND.orLt : '#fff',
               color: activeFilters.has(f.id) ? '#c2410c' : '#6b7280',
               fontSize: 11, fontWeight: 600, cursor: 'pointer', flexShrink: 0
