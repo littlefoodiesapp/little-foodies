@@ -144,3 +144,19 @@ export async function getPointsHistory(userId) {
     .order('created_at', { ascending: false })
     .limit(50)
 }
+
+// ── FAVORITES (additional helpers) ───────────────────────────
+
+export async function addFavorite(restaurantId) {
+  const session = await getSession()
+  return supabase.from('favorites')
+    .insert({ user_id: session?.user?.id, restaurant_id: restaurantId })
+}
+
+export async function removeFavorite(restaurantId) {
+  const session = await getSession()
+  return supabase.from('favorites')
+    .delete()
+    .eq('user_id', session?.user?.id)
+    .eq('restaurant_id', restaurantId)
+}
