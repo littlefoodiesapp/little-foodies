@@ -130,7 +130,7 @@ export default function ExplorePage() {
         {/* Search hint */}
         <p style={{ fontSize: 11, color: '#9ca3af', marginTop: 6 }}>
           {search
-            ? 
+            ? `Showing results for "${search}"`
             : 'Try "07083", "Clark", or "Pizza"'
           }
         </p>
