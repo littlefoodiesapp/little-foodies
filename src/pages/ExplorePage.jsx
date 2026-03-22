@@ -25,9 +25,7 @@ const FILTERS = [
 ]
 
 const BG_COLORS = ['#fff3ee','#fefae8','#e6f7f5','#fef0f8','#e8f4fd','#f0fdf4']
-
 const font = { fontFamily: "'Montserrat', sans-serif" }
-const hFont = { fontFamily: "'IntroRust', cursive" }
 
 export default function ExplorePage() {
   const { user } = useAuth()
@@ -35,9 +33,11 @@ export default function ExplorePage() {
   const [favIds, setFavIds]           = useState(new Set())
   const [activeFilters, setFilters]   = useState(new Set())
   const [loading, setLoading]         = useState(true)
+  const [search, setSearch]           = useState('')
+  const [searching, setSearching]     = useState(false)
 
   useEffect(() => {
-    getRestaurants().then(({ data, error }) => {
+    getRestaurants().then(({ data }) => {
       setRestaurants(data || [])
       setLoading(false)
     })
@@ -55,47 +55,97 @@ export default function ExplorePage() {
     wasFaved ? await removeFavorite(r.id) : await addFavorite(r.id)
   }
 
-  const visible = restaurants.filter(r => {
+  // Search filter — matches zip, city, name, or cuisine
+  const searchTerm = search.trim().toLowerCase()
+  const searchFiltered = restaurants.filter(r => {
+    if (!searchTerm) return true
+    return (
+      (r.zip    || '').toLowerCase().includes(searchTerm) ||
+      (r.city   || '').toLowerCase().includes(searchTerm) ||
+      (r.name   || '').toLowerCase().includes(searchTerm) ||
+      (r.cuisine|| '').toLowerCase().includes(searchTerm) ||
+      (r.state  || '').toLowerCase().includes(searchTerm)
+    )
+  })
+
+  // Then amenity filter on top of search results
+  const visible = searchFiltered.filter(r => {
     if (!activeFilters.size) return true
     return [...activeFilters].every(f =>
       (r.amenities || []).some(a => a.amenity_key === f && a.yes_votes > a.no_votes)
     )
   })
 
+  const noResults   = !loading && searchTerm && visible.length === 0
+  const hasResults  = visible.length > 0
+
   return (
     <div style={{ ...font, background: '#f9fafb', minHeight: '100vh', paddingBottom: 80 }}>
 
       {/* Header */}
-      <div style={{ background: '#fff', padding: '16px 16px 12px', borderBottom: '0.5px solid #e5e7eb' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-          <img src={LOGO} alt="Little Foodies" style={{ height: 48, width: 'auto' }} />
+      <div style={{ background: '#fff', padding: '16px 16px 12px',
+        borderBottom: '0.5px solid #e5e7eb' }}>
+        <div style={{ display: 'flex', alignItems: 'center',
+          justifyContent: 'space-between', marginBottom: 10 }}>
+          <img src={LOGO} alt="Little Foodies" style={{ height: 44, width: 'auto' }} />
           <div style={{ fontSize: 11, fontWeight: 600, color: '#c2410c',
-            background: BRAND.orLt, border: `0.5px solid ${BRAND.orBd}`,
-            padding: '4px 10px', borderRadius: 20, ...font }}>
+            background: BRAND.orLt, border: ,
+            padding: '4px 10px', borderRadius: 20 }}>
             📍 Union · Clark · Cranford
           </div>
         </div>
-        <p style={{ fontSize: 12, color: '#6b7280', marginBottom: 10, ...font }}>
-          Family-friendly restaurants near you
-        </p>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8,
-          background: '#f9fafb', border: '0.5px solid #e5e7eb',
-          borderRadius: 10, padding: '8px 12px' }}>
-          <div style={{ width: 8, height: 8, background: BRAND.orange, borderRadius: '50%', flexShrink: 0 }} />
-          <span style={{ fontSize: 12, color: '#6b7280', ...font }}>Searching near Union, NJ</span>
+
+        {/* Search bar */}
+        <div style={{ position: 'relative', marginBottom: 4 }}>
+          <span style={{ position: 'absolute', left: 12, top: '50%',
+            transform: 'translateY(-50%)', fontSize: 15, pointerEvents: 'none' }}>
+            🔍
+          </span>
+          <input
+            type="text"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search by zip code, city, or restaurant name..."
+            style={{
+              width: '100%', padding: '10px 36px 10px 36px',
+              border: ,
+              borderRadius: 10, fontSize: 12, outline: 'none',
+              background: search ? '#fff' : '#f9fafb',
+              boxSizing: 'border-box', ...font,
+              transition: 'border-color .15s'
+            }}
+          />
+          {search && (
+            <button onClick={() => setSearch('')}
+              style={{ position: 'absolute', right: 10, top: '50%',
+                transform: 'translateY(-50%)', background: '#e5e7eb',
+                border: 'none', borderRadius: '50%', width: 20, height: 20,
+                cursor: 'pointer', fontSize: 11, display: 'flex',
+                alignItems: 'center', justifyContent: 'center', color: '#6b7280' }}>
+              ✕
+            </button>
+          )}
         </div>
+
+        {/* Search hint */}
+        <p style={{ fontSize: 11, color: '#9ca3af', marginTop: 6 }}>
+          {search
+            ? 
+            : 'Try "07083", "Clark", or "Pizza"'
+          }
+        </p>
       </div>
 
       {/* Points banner */}
       <div style={{ margin: '12px 16px 0', background: BRAND.blLt,
-        border: `0.5px solid ${BRAND.blBd}`, borderRadius: 12,
+        border: , borderRadius: 12,
         padding: '11px 14px', display: 'flex', gap: 10, alignItems: 'center' }}>
         <span style={{ fontSize: 18, flexShrink: 0 }}>🗳️</span>
         <div>
-          <div style={{ fontSize: 12, fontWeight: 600, color: '#0552a0', ...font }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: '#0552a0' }}>
             Help verify family amenities
           </div>
-          <div style={{ fontSize: 11, color: '#0552a0', opacity: .8, ...font }}>
+          <div style={{ fontSize: 11, color: '#0552a0', opacity: .8 }}>
             Earn <strong>5 pts</strong> per vote · 5 in a row = <strong>+20 pt bonus!</strong>
           </div>
         </div>
@@ -106,90 +156,129 @@ export default function ExplorePage() {
         overflowX: 'auto', scrollbarWidth: 'none' }}>
         {FILTERS.map(f => (
           <div key={f.id} onClick={() => toggleFilter(f.id)}
-            style={{ display: 'flex', alignItems: 'center', gap: 4,
+            style={{
+              display: 'flex', alignItems: 'center', gap: 4,
               padding: '6px 11px', borderRadius: 20, whiteSpace: 'nowrap',
-              border: `1.5px solid ${activeFilters.has(f.id) ? BRAND.orange : '#e5e7eb'}`,
+              border: ,
               background: activeFilters.has(f.id) ? BRAND.orLt : '#fff',
               color: activeFilters.has(f.id) ? '#c2410c' : '#6b7280',
-              fontSize: 11, fontWeight: 600, cursor: 'pointer', flexShrink: 0, ...font }}>
+              fontSize: 11, fontWeight: 600, cursor: 'pointer', flexShrink: 0
+            }}>
             <span style={{ fontSize: 12 }}>{f.icon}</span>{f.label}
           </div>
         ))}
       </div>
 
-      {/* Count */}
+      {/* Result count */}
       <div style={{ fontSize: 11, fontWeight: 600, color: '#9ca3af',
         padding: '0 16px', marginBottom: 10, textTransform: 'uppercase',
-        letterSpacing: '.06em', ...font }}>
-        {loading ? 'Loading...' : `${visible.length} restaurant${visible.length !== 1 ? 's' : ''} found`}
+        letterSpacing: '.06em' }}>
+        {loading ? 'Loading...' : }
       </div>
 
-      {/* Cards */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '0 16px' }}>
-        {visible.map((r, i) => {
-          const verifiedAms = (r.amenities || []).filter(a => a.is_verified).slice(0, 3)
-          const isPending   = r.status === 'pending'
-          const bg          = BG_COLORS[i % BG_COLORS.length]
-          return (
-            <Link key={r.id} to={`/restaurant/${r.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
-              <div style={{ background: '#fff', border: '0.5px solid #e5e7eb',
-                borderRadius: 14, overflow: 'hidden', cursor: 'pointer' }}>
+      {/* No results state */}
+      {noResults && (
+        <div style={{ margin: '16px', background: '#fff', border: '0.5px solid #e5e7eb',
+          borderRadius: 14, padding: '32px 20px', textAlign: 'center' }}>
+          <div style={{ fontSize: 48, marginBottom: 12 }}>🗺️</div>
+          <div style={{ fontSize: 15, fontWeight: 600, color: '#111827', marginBottom: 6 }}>
+            No restaurants found for "{search}"
+          </div>
+          <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 20, lineHeight: 1.6 }}>
+            We don't have any family-friendly restaurants listed there yet.
+            Be the first to add one and earn <strong>50 points!</strong>
+          </div>
+          <Link to="/add" style={{
+            display: 'inline-block', padding: '11px 24px',
+            background: '#f57b46', color: '#fff', borderRadius: 10,
+            fontSize: 13, fontWeight: 600, textDecoration: 'none',
+            boxShadow: '0 4px 14px rgba(245,123,70,.35)'
+          }}>
+            + Add a restaurant
+          </Link>
+          <div style={{ marginTop: 16 }}>
+            <button onClick={() => setSearch('')}
+              style={{ background: 'none', border: 'none', color: '#6b7280',
+                fontSize: 12, cursor: 'pointer', textDecoration: 'underline', ...font }}>
+              Clear search and see all restaurants
+            </button>
+          </div>
+        </div>
+      )}
 
-                {/* Image area */}
-                <div style={{ height: 90, background: bg,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 42, position: 'relative' }}>
-                  {r.emoji || '🍽️'}
-                </div>
-
-                <div style={{ padding: '11px 13px' }}>
-                  <div style={{ display: 'flex', alignItems: 'flex-start',
-                    justifyContent: 'space-between', marginBottom: 2 }}>
-                    <div style={{ fontSize: 15, fontWeight: 600, color: '#111827', ...font }}>{r.name}</div>
-                    <button onClick={e => toggleFav(e, r)}
-                      style={{ background: 'none', border: 'none', fontSize: 18,
-                        cursor: 'pointer', color: favIds.has(r.id) ? BRAND.pink : '#d1d5db',
-                        padding: 0, flexShrink: 0, marginLeft: 8 }}>
-                      {favIds.has(r.id) ? '♥' : '♡'}
-                    </button>
+      {/* Restaurant cards */}
+      {hasResults && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '0 16px' }}>
+          {visible.map((r, i) => {
+            const verifiedAms = (r.amenities || []).filter(a => a.is_verified).slice(0, 3)
+            const isPending   = r.status === 'pending'
+            const bg          = BG_COLORS[i % BG_COLORS.length]
+            return (
+              <Link key={r.id} to={}
+                style={{ textDecoration: 'none', color: 'inherit' }}>
+                <div style={{ background: '#fff', border: '0.5px solid #e5e7eb',
+                  borderRadius: 14, overflow: 'hidden', cursor: 'pointer' }}>
+                  <div style={{ height: 90, background: bg,
+                    display: 'flex', alignItems: 'center',
+                    justifyContent: 'center', fontSize: 42 }}>
+                    {r.emoji || '🍽️'}
                   </div>
-
-                  <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 8, ...font }}>{r.cuisine}</div>
-
-                  <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 8 }}>
-                    {isPending ? (
-                      <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 20, fontWeight: 600,
-                        background: BRAND.ywLt, color: '#854d0e', border: `0.5px solid ${BRAND.ywBd}`, ...font }}>
-                        ⏳ Pending
-                      </span>
-                    ) : (
-                      <>
-                        <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 20, fontWeight: 600,
-                          background: BRAND.tlLt, color: '#065f55', border: `0.5px solid ${BRAND.tlBd}`, ...font }}>
-                          ✓ Verified
+                  <div style={{ padding: '11px 13px' }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start',
+                      justifyContent: 'space-between', marginBottom: 2 }}>
+                      <div style={{ fontSize: 15, fontWeight: 600, color: '#111827' }}>
+                        {r.name}
+                      </div>
+                      <button onClick={e => toggleFav(e, r)}
+                        style={{ background: 'none', border: 'none', fontSize: 18,
+                          cursor: 'pointer', color: favIds.has(r.id) ? BRAND.pink : '#d1d5db',
+                          padding: 0, flexShrink: 0, marginLeft: 8 }}>
+                        {favIds.has(r.id) ? '♥' : '♡'}
+                      </button>
+                    </div>
+                    <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 8 }}>
+                      {r.cuisine}
+                    </div>
+                    <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 8 }}>
+                      {isPending ? (
+                        <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 20,
+                          fontWeight: 600, background: BRAND.ywLt, color: '#854d0e',
+                          border:  }}>
+                          ⏳ Pending
                         </span>
-                        {verifiedAms.map(a => (
-                          <span key={a.amenity_key} style={{ fontSize: 10, padding: '2px 7px',
-                            borderRadius: 20, background: BRAND.tlLt, color: '#065f55',
-                            border: `0.5px solid ${BRAND.tlBd}` }}>
-                            {FILTERS.find(x => x.id === a.amenity_key)?.icon}
+                      ) : (
+                        <>
+                          <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 20,
+                            fontWeight: 600, background: BRAND.tlLt, color: '#065f55',
+                            border:  }}>
+                            ✓ Verified
                           </span>
-                        ))}
-                      </>
-                    )}
-                  </div>
-
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                    paddingTop: 8, borderTop: '0.5px solid #f3f4f6' }}>
-                    <span style={{ fontSize: 10, color: '#9ca3af', ...font }}>{r.hours}</span>
-                    {r.city && <span style={{ fontSize: 10, color: '#9ca3af', ...font }}>{r.city}, {r.state}</span>}
+                          {verifiedAms.map(a => (
+                            <span key={a.amenity_key} style={{ fontSize: 10, padding: '2px 7px',
+                              borderRadius: 20, background: BRAND.tlLt, color: '#065f55',
+                              border:  }}>
+                              {FILTERS.find(x => x.id === a.amenity_key)?.icon}
+                            </span>
+                          ))}
+                        </>
+                      )}
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center',
+                      justifyContent: 'space-between',
+                      paddingTop: 8, borderTop: '0.5px solid #f3f4f6' }}>
+                      <span style={{ fontSize: 10, color: '#9ca3af' }}>{r.hours}</span>
+                      {r.city && (
+                        <span style={{ fontSize: 10, color: '#9ca3af' }}>
+                          {r.city}, {r.state}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            </Link>
-          )
-        })}
-      </div>
+              </Link>
+            )
+          })}</div>
+      )}
     </div>
   )
 }
