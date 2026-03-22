@@ -1,36 +1,41 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, createContext, useContext } from 'react'
 import { supabase } from '../lib/supabase'
-import { getProfile } from '../lib/api'
 
-export function useAuth() {
-  const [session, setSession] = useState(null)
-  const [profile, setProfile] = useState(null)
+const AuthContext = createContext(null)
+
+export function AuthProvider({ children }) {
+  const [user, setUser]       = useState(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session)
-      if (session) loadProfile(session.user.id)
-      else setLoading(false)
+      setUser(session?.user ?? null)
+      setLoading(false)
     })
 
-    // Listen for auth changes (sign in / sign out)
+    // Listen for sign in / sign out
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
-        setSession(session)
-        if (session) loadProfile(session.user.id)
-        else { setProfile(null); setLoading(false) }
+        setUser(session?.user ?? null)
+        setLoading(false)
       }
     )
     return () => subscription.unsubscribe()
   }, [])
 
-  async function loadProfile(userId) {
-    const { data } = await getProfile(userId)
-    setProfile(data)
-    setLoading(false)
+  async function logout() {
+    await supabase.auth.signOut()
+    setUser(null)
   }
 
-  return { session, profile, loading, isLoggedIn: !!session }
+  return (
+    <AuthContext.Provider value={{ user, setUser, loading, logout, isLoggedIn: !!user }}>
+      {children}
+    </AuthContext.Provider>
+  )
+}
+
+export function useAuth() {
+  return useContext(AuthContext)
 }
