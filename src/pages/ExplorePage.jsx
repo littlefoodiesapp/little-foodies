@@ -34,7 +34,7 @@ export default function ExplorePage() {
   const [loading, setLoading]         = useState(true)
 
   useEffect(() => {
-    getRestaurants().then(r => { setRestaurants(r || []); setLoading(false) })
+    getRestaurants().then(({ data, error }) => { setRestaurants(data || []); setLoading(false) })
   }, [])
 
   function toggleFilter(id) {
