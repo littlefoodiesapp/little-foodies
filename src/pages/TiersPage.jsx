@@ -96,11 +96,12 @@ function ShareCard({ tier, stats, onClose }) {
     canvas.width = W
     canvas.height = H
 
-    // Background gradient
-    const grad = ctx.createLinearGradient(0, 0, W, H)
-    grad.addColorStop(0, '#f57b46')
-    grad.addColorStop(0.5, '#f46ab8')
-    grad.addColorStop(1, '#0692e5')
+    // Background gradient - light peach top to deeper pink/purple bottom
+    const grad = ctx.createLinearGradient(0, 0, 0, H)
+    grad.addColorStop(0, '#fde8dc')
+    grad.addColorStop(0.35, '#f8a07a')
+    grad.addColorStop(0.65, '#f46ab8')
+    grad.addColorStop(1, '#9b59b6')
     ctx.fillStyle = grad
     ctx.fillRect(0, 0, W, H)
 
@@ -121,7 +122,7 @@ function ShareCard({ tier, stats, onClose }) {
       // Tier icon circle
       ctx.save()
       ctx.beginPath()
-      ctx.arc(W / 2, 340, 80, 0, Math.PI * 2)
+      ctx.arc(W / 2, 380, 80, 0, Math.PI * 2)
       ctx.fillStyle = 'rgba(255,255,255,0.25)'
       ctx.fill()
       ctx.restore()
@@ -129,20 +130,20 @@ function ShareCard({ tier, stats, onClose }) {
       // Tier icon
       ctx.font = '72px serif'
       ctx.textAlign = 'center'
-      ctx.fillText(tier.icon, W / 2, 365)
+      ctx.fillText(tier.icon, W / 2, 405)
 
       // Tier name
-      ctx.font = 'bold 48px Arial'
+      ctx.font = 'bold 52px Arial'
       ctx.fillStyle = '#ffffff'
       ctx.textAlign = 'center'
-      ctx.fillText(tier.name.toUpperCase(), W / 2, 450)
+      ctx.fillText(tier.name.toUpperCase(), W / 2, 510)
 
       // Divider
       ctx.strokeStyle = 'rgba(255,255,255,0.5)'
       ctx.lineWidth = 1.5
       ctx.beginPath()
-      ctx.moveTo(W/2 - 80, 475)
-      ctx.lineTo(W/2 + 80, 475)
+      ctx.moveTo(W/2 - 80, 535)
+      ctx.lineTo(W/2 + 80, 535)
       ctx.stroke()
 
       // Stats
@@ -158,11 +159,11 @@ function ShareCard({ tier, stats, onClose }) {
       ].filter(Boolean)
 
       statLines.forEach((line, i) => {
-        ctx.fillText(line, W / 2, 520 + i * 36)
+        ctx.fillText(line, W / 2, 570 + i * 36)
       })
 
       // CTA box
-      const boxY = 700
+      const boxY = 750
       ctx.save()
       ctx.beginPath()
       roundRect(ctx, 60, boxY, W - 120, 110, 20)
