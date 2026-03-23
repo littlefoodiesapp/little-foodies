@@ -242,8 +242,10 @@ function ShareCard({ tier, stats, onClose }) {
         <button onClick={handleShare}
           style={{ flex: 2, padding: '14px 0', background: '#f57b46', border: 'none',
             borderRadius: 12, color: '#fff', fontSize: 14, fontWeight: 600,
-            cursor: 'pointer', ...font }}>
-          {typeof navigator !== 'undefined' && navigator.share ? '📤 Share' : '⬇️ Download'}
+            cursor: 'pointer', ...font, display: 'flex', alignItems: 'center',
+            justifyContent: 'center', gap: 8 }}>
+          <span>⬇️</span>
+          <span>{typeof navigator !== 'undefined' && navigator.share ? 'Share / Save' : 'Save image'}</span>
         </button>
         <button onClick={onClose}
           style={{ flex: 1, padding: '14px 0', background: 'rgba(255,255,255,0.15)',
@@ -253,9 +255,16 @@ function ShareCard({ tier, stats, onClose }) {
         </button>
       </div>
 
-      <p style={{ color: 'rgba(255,255,255,.6)', fontSize: 12, marginTop: 12, ...font }}>
-        Screenshot or download to share on Instagram Stories
-      </p>
+      <div style={{ textAlign: 'center', marginTop: 12 }}>
+        <p style={{ color: 'rgba(255,255,255,.85)', fontSize: 13,
+          fontWeight: 600, margin: '0 0 4px', ...font }}>
+          📸 Share to Instagram Stories
+        </p>
+        <p style={{ color: 'rgba(255,255,255,.6)', fontSize: 11,
+          margin: 0, lineHeight: 1.5, ...font }}>
+          Download the image → open Instagram → tap + Story → select from camera roll
+        </p>
+      </div>
     </div>
   )
 }

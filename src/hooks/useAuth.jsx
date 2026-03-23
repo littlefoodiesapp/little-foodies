@@ -8,28 +8,32 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Check for existing session (also handles token in URL hash from email confirm)
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null)
+      // Only treat as logged in if email is confirmed
+      const u = session?.user ?? null
+      setUser(u?.email_confirmed_at ? u : null)
       setLoading(false)
     })
 
-    // Listen for all auth changes including email confirmation
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        setUser(session?.user ?? null)
+        const u = session?.user ?? null
+
+        // Only allow confirmed users through
+        if (u && !u.email_confirmed_at) {
+          setUser(null)
+          setLoading(false)
+          return
+        }
+
+        setUser(u)
         setLoading(false)
 
-        // When user confirms email, create/update their profile
-        if (event === 'SIGNED_IN' && session?.user) {
-          const u = session.user
+        // When user confirms email, create their profile
+        if (event === 'SIGNED_IN' && u) {
           const meta = u.user_metadata || {}
           const { data: existing } = await supabase
-            .from('profiles')
-            .select('id')
-            .eq('id', u.id)
-            .single()
-
+            .from('profiles').select('id').eq('id', u.id).single()
           if (!existing) {
             await supabase.from('profiles').insert({
               id:           u.id,

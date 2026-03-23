@@ -106,9 +106,38 @@ export default function LoginPage() {
       password: form.password,
     })
 
-    if (loginErr) { setError(loginErr.message); setLoading(false); return }
+    if (loginErr) {
+      // Give a friendlier message for common errors
+      if (loginErr.message.includes('Email not confirmed')) {
+        setError('Please check your inbox and confirm your email before signing in.')
+      } else if (loginErr.message.includes('Invalid login')) {
+        setError('Incorrect email or password. Please try again.')
+      } else {
+        setError(loginErr.message)
+      }
+      setLoading(false)
+      return
+    }
+
+    // Block unconfirmed users
+    if (data?.user && !data.user.email_confirmed_at) {
+      await supabase.auth.signOut()
+      setError('Please confirm your email first — check your inbox for the link we sent you!')
+      setLoading(false)
+      return
+    }
+
     if (data?.user) setUser(data.user)
     navigate('/')
+  }
+
+  async function resendConfirmation() {
+    if (!form.email.trim()) { setError('Enter your email above first'); return }
+    setLoading(true)
+    await supabase.auth.resend({ type: 'signup', email: form.email.trim() })
+    setError(null)
+    setSuccess(true)
+    setLoading(false)
   }
 
   if (success) return (
@@ -304,9 +333,18 @@ export default function LoginPage() {
             {error && (
               <div style={{ padding: '10px 14px', background: '#fef2f2',
                 border: '0.5px solid #fecaca', borderRadius: 10,
-                fontSize: 12, color: '#dc2626', marginBottom: 16 }}>
+                fontSize: 12, color: '#dc2626', marginBottom: error.includes('confirm') ? 8 : 16 }}>
                 {error}
               </div>
+            )}
+            {error && error.includes('confirm') && (
+              <button onClick={resendConfirmation} disabled={loading}
+                style={{ width: '100%', padding: '10px 0', background: '#fff3ee',
+                  border: '1px solid #fdc9b0', borderRadius: 10, fontSize: 12,
+                  fontWeight: 600, color: '#c2410c', cursor: 'pointer',
+                  marginBottom: 16, fontFamily: "'Montserrat', sans-serif" }}>
+                📬 Resend confirmation email
+              </button>
             )}
 
             <button onClick={handleLogin} disabled={loading}
