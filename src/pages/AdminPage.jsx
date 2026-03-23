@@ -37,6 +37,9 @@ export default function AdminPage() {
   const [restaurants, setRestaurants] = useState([])
   const [restFilter, setRestFilter]   = useState('pending')
 
+  // Claims
+  const [claims, setClaims]         = useState([])
+
   // Events
   const [events, setEvents]         = useState([])
   const [showEventForm, setShowEventForm] = useState(false)
@@ -60,6 +63,7 @@ export default function AdminPage() {
     setIsAdmin(true)
     loadRestaurants()
     loadEvents()
+    loadClaims()
     setLoading(false)
   }
 
@@ -77,6 +81,52 @@ export default function AdminPage() {
       .select('*, rsvps(count)')
       .order('event_date')
     setEvents(data || [])
+  }
+
+  async function loadClaims() {
+    const { data } = await supabase
+      .from('restaurant_claims')
+      .select('*, profiles(display_name, first_name, last_name)')
+      .order('created_at', { ascending: false })
+    setClaims(data || [])
+  }
+
+  async function approveClaim(claim) {
+    // Find matching restaurant
+    const { data: restaurants } = await supabase
+      .from('restaurants')
+      .select('id, name')
+      .ilike('name', '%' + claim.restaurant_name.split(' ')[0] + '%')
+
+    let restaurantId = null
+    if (restaurants && restaurants.length === 1) {
+      restaurantId = restaurants[0].id
+      // Link owner to restaurant
+      await supabase.from('restaurants')
+        .update({ owner_id: claim.user_id, status: 'claimed' })
+        .eq('id', restaurantId)
+    }
+
+    await supabase.from('restaurant_claims')
+      .update({ status: 'approved', reviewed_at: new Date().toISOString() })
+      .eq('id', claim.id)
+
+    // Update user account type
+    await supabase.from('profiles')
+      .update({ account_type: 'restaurant_owner' })
+      .eq('id', claim.user_id)
+
+    loadClaims()
+    loadRestaurants()
+    showToast('Claim approved ✓')
+  }
+
+  async function rejectClaim(id) {
+    await supabase.from('restaurant_claims')
+      .update({ status: 'rejected', reviewed_at: new Date().toISOString() })
+      .eq('id', id)
+    loadClaims()
+    showToast('Claim rejected')
   }
 
   function showToast(msg, ok = true) {
@@ -239,6 +289,7 @@ export default function AdminPage() {
           { label: 'Pending', count: restaurants.filter(r => r.status === 'pending').length, color: '#f57b46' },
           { label: 'Verified', count: restaurants.filter(r => r.status === 'verified').length, color: '#00a994' },
           { label: 'Events', count: events.filter(e => e.status === 'upcoming').length, color: '#0692e5' },
+          { label: 'Claims', count: claims.filter(c => c.status === 'pending').length, color: '#f46ab8' },
         ].map(s => (
           <div key={s.label} style={{ flex: 1, padding: '12px 8px', textAlign: 'center',
             borderRight: '0.5px solid #f3f4f6' }}>
@@ -254,6 +305,7 @@ export default function AdminPage() {
         {[
           { id: 'restaurants', label: '🍽️ Restaurants' },
           { id: 'events',      label: '🎉 Events' },
+          { id: 'claims',      label: `🔑 Claims${claims.filter(c => c.status === 'pending').length > 0 ? ` (${claims.filter(c => c.status === 'pending').length})` : ''}` },
         ].map(t => (
           <button key={t.id} onClick={() => setActiveTab(t.id)}
             style={{ flex: 1, padding: '12px 0', background: 'none', border: 'none',
@@ -455,6 +507,67 @@ export default function AdminPage() {
               </div>
             )
           })}
+        </div>
+      )}
+
+      {/* ── CLAIMS TAB ──────────────────────────────── */}
+      {activeTab === 'claims' && (
+        <div style={{ padding: '14px 16px 0' }}>
+          {claims.length === 0 && (
+            <div style={{ textAlign: 'center', padding: '40px 0', color: '#9ca3af' }}>
+              No claim requests yet
+            </div>
+          )}
+          {claims.map(claim => (
+            <div key={claim.id} style={{ background: '#fff', border: '0.5px solid #e5e7eb',
+              borderRadius: 14, padding: '14px', marginBottom: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start',
+                justifyContent: 'space-between', marginBottom: 8 }}>
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: '#111827', marginBottom: 2 }}>
+                    🍽️ {claim.restaurant_name}
+                  </div>
+                  <div style={{ fontSize: 12, color: '#6b7280' }}>
+                    👤 {claim.profiles?.display_name || claim.profiles?.first_name || 'Unknown'}
+                  </div>
+                  <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 2 }}>
+                    📧 {claim.business_email}
+                    {claim.business_phone && ` · 📞 ${claim.business_phone}`}
+                  </div>
+                  <div style={{ fontSize: 10, color: '#9ca3af', marginTop: 2 }}>
+                    Submitted {new Date(claim.created_at).toLocaleDateString('en-US', {
+                      month: 'short', day: 'numeric', year: 'numeric'
+                    })}
+                  </div>
+                </div>
+                <span style={{ fontSize: 10, padding: '3px 10px', borderRadius: 20,
+                  fontWeight: 600,
+                  background: claim.status === 'approved' ? '#e6f7f5'
+                    : claim.status === 'rejected' ? '#fef2f2' : '#fefae8',
+                  color: claim.status === 'approved' ? '#065f55'
+                    : claim.status === 'rejected' ? '#dc2626' : '#854d0e' }}>
+                  {claim.status === 'approved' ? '✓ Approved'
+                    : claim.status === 'rejected' ? '✗ Rejected' : '⏳ Pending'}
+                </span>
+              </div>
+              {claim.status === 'pending' && (
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button onClick={() => approveClaim(claim)}
+                    style={{ flex: 2, padding: '9px 0', background: '#00a994',
+                      border: 'none', borderRadius: 8, color: '#fff',
+                      fontSize: 12, fontWeight: 600, cursor: 'pointer', ...font }}>
+                    ✓ Approve claim
+                  </button>
+                  <button onClick={() => rejectClaim(claim.id)}
+                    style={{ flex: 1, padding: '9px 0', background: '#fef2f2',
+                      border: '0.5px solid #fecaca', borderRadius: 8, color: '#dc2626',
+                      fontSize: 12, fontWeight: 600, cursor: 'pointer', ...font }}>
+                    Reject
+                  </button>
+                </div>
+              )}
+            </div>
+          ))}
         </div>
       )}
 

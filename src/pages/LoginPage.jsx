@@ -8,11 +8,10 @@ const LOGO = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAB0CAYAAAD0DOul
 
 const inp = {
   width: '100%', padding: '12px 14px', border: '1.5px solid #e5e7eb',
-  borderRadius: 10, fontSize: 13, boxSizing: 'border-box',
+  borderRadius: 10, fontSize: 16, boxSizing: 'border-box',
   outline: 'none', fontFamily: "'Montserrat', sans-serif",
   background: '#fafafa', color: '#111827', transition: 'border-color .15s'
 }
-
 const lbl = {
   fontSize: 11, fontWeight: 600, color: '#374151',
   textTransform: 'uppercase', letterSpacing: '.05em',
@@ -31,30 +30,29 @@ const KIDS_OPTIONS = [
 export default function LoginPage() {
   const navigate = useNavigate()
   const { setUser } = useAuth()
-  const [mode, setMode] = useState('login') // 'signup' | 'login' | 'forgot'
+  const [mode, setMode]       = useState('login')
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState(null)
+  const [error, setError]     = useState(null)
   const [success, setSuccess] = useState(false)
   const [resetSent, setResetSent] = useState(false)
+  const [accountType, setAccountType] = useState('family')
 
   const [form, setForm] = useState({
     firstName: '', lastName: '', zip: '', kids: '',
-    email: '', password: ''
+    email: '', password: '',
+    restaurantName: '', businessPhone: ''
   })
 
-  function update(field, val) {
-    setForm(prev => ({ ...prev, [field]: val }))
-    setError(null)
-  }
-
+  function update(field, val) { setForm(prev => ({ ...prev, [field]: val })); setError(null) }
   function focusStyle(e) { e.target.style.borderColor = '#f57b46' }
   function blurStyle(e)  { e.target.style.borderColor = '#e5e7eb' }
 
   async function handleSignup() {
     if (!form.firstName.trim()) { setError('Please enter your first name'); return }
     if (!form.lastName.trim())  { setError('Please enter your last name'); return }
-    if (!form.zip.trim())       { setError('Please enter your zip code'); return }
-    if (!form.kids)             { setError('Please select number of kids'); return }
+    if (accountType === 'family' && !form.zip.trim()) { setError('Please enter your zip code'); return }
+    if (accountType === 'family' && !form.kids) { setError('Please select number of kids'); return }
+    if (accountType === 'restaurant_owner' && !form.restaurantName.trim()) { setError('Please enter your restaurant name'); return }
     if (!form.email.trim())     { setError('Please enter your email'); return }
     if (form.password.length < 6) { setError('Password must be at least 6 characters'); return }
 
@@ -67,27 +65,40 @@ export default function LoginPage() {
       options: {
         data: {
           display_name: form.firstName.trim() + ' ' + form.lastName.trim(),
-          first_name: form.firstName.trim(),
-          last_name: form.lastName.trim(),
-          zip: form.zip.trim(),
-          kids: form.kids,
+          first_name:   form.firstName.trim(),
+          last_name:    form.lastName.trim(),
+          zip:          form.zip.trim(),
+          kids:         accountType === 'family' ? form.kids : null,
+          account_type: accountType,
         }
       }
     })
 
     if (signupErr) { setError(signupErr.message); setLoading(false); return }
 
-    // Update profile with extra fields
     if (data?.user) {
       await supabase.from('profiles').upsert({
-        id: data.user.id,
+        id:           data.user.id,
         display_name: form.firstName.trim() + ' ' + form.lastName.trim(),
-        first_name: form.firstName.trim(),
-        last_name: form.lastName.trim(),
-        zip: form.zip.trim(),
-        kids: form.kids,
-        points: 0,
+        first_name:   form.firstName.trim(),
+        last_name:    form.lastName.trim(),
+        zip:          form.zip.trim() || null,
+        kids:         accountType === 'family' ? form.kids : null,
+        account_type: accountType,
+        points:       0,
       })
+
+      // If restaurant owner, create a claim request
+      if (accountType === 'restaurant_owner' && form.restaurantName.trim()) {
+        await supabase.from('restaurant_claims').insert({
+          user_id:         data.user.id,
+          restaurant_name: form.restaurantName.trim(),
+          business_email:  form.email.trim(),
+          business_phone:  form.businessPhone.trim() || null,
+          status:          'pending',
+        })
+      }
+
       setUser(data.user)
     }
 
@@ -98,17 +109,14 @@ export default function LoginPage() {
   async function handleLogin() {
     if (!form.email.trim())  { setError('Please enter your email'); return }
     if (!form.password)      { setError('Please enter your password'); return }
-
     setLoading(true)
     setError(null)
 
     const { data, error: loginErr } = await supabase.auth.signInWithPassword({
-      email: form.email.trim(),
-      password: form.password,
+      email: form.email.trim(), password: form.password,
     })
 
     if (loginErr) {
-      // Give a friendlier message for common errors
       if (loginErr.message.includes('Email not confirmed')) {
         setError('Please check your inbox and confirm your email before signing in.')
       } else if (loginErr.message.includes('Invalid login')) {
@@ -116,16 +124,13 @@ export default function LoginPage() {
       } else {
         setError(loginErr.message)
       }
-      setLoading(false)
-      return
+      setLoading(false); return
     }
 
-    // Block unconfirmed users
     if (data?.user && !data.user.email_confirmed_at) {
       await supabase.auth.signOut()
-      setError('Please confirm your email first — check your inbox for the link we sent you!')
-      setLoading(false)
-      return
+      setError('Please confirm your email first — check your inbox!')
+      setLoading(false); return
     }
 
     if (data?.user) setUser(data.user)
@@ -136,24 +141,21 @@ export default function LoginPage() {
     if (!form.email.trim()) { setError('Enter your email above first'); return }
     setLoading(true)
     await supabase.auth.resend({ type: 'signup', email: form.email.trim() })
-    setError(null)
-    setSuccess(true)
-    setLoading(false)
+    setError(null); setSuccess(true); setLoading(false)
   }
 
   async function handleForgotPassword() {
     if (!form.email.trim()) { setError('Please enter your email address above'); return }
-    setLoading(true)
-    setError(null)
+    setLoading(true); setError(null)
     const { error: resetErr } = await supabase.auth.resetPasswordForEmail(
       form.email.trim(),
-      { redirectTo: 'https://little-foodies.pages.dev/login' }
+      { redirectTo: 'https://little-foodies.pages.dev/reset-password' }
     )
     if (resetErr) { setError(resetErr.message); setLoading(false); return }
-    setResetSent(true)
-    setLoading(false)
+    setResetSent(true); setLoading(false)
   }
 
+  // ── SUCCESS ──────────────────────────────────────────
   if (success) return (
     <div style={{ ...font, minHeight: '100vh', background: '#f9fafb',
       display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
@@ -164,10 +166,17 @@ export default function LoginPage() {
         <div style={{ fontSize: 20, fontWeight: 700, color: '#111827', marginBottom: 8 }}>
           Check your email!
         </div>
-        <div style={{ fontSize: 13, color: '#6b7280', lineHeight: 1.7, marginBottom: 24 }}>
+        <div style={{ fontSize: 13, color: '#6b7280', lineHeight: 1.7, marginBottom: 8 }}>
           We sent a confirmation link to <strong>{form.email}</strong>.
-          Click it to activate your account and start earning points!
         </div>
+        {accountType === 'restaurant_owner' && (
+          <div style={{ background: '#e6f7f5', border: '0.5px solid #99ddd6',
+            borderRadius: 10, padding: '12px', marginBottom: 16,
+            fontSize: 12, color: '#065f55', lineHeight: 1.6 }}>
+            🍽️ Your claim request for <strong>{form.restaurantName}</strong> has been submitted.
+            We'll review it and get back to you within 1-2 business days!
+          </div>
+        )}
         <button onClick={() => { setSuccess(false); setMode('login') }}
           style={{ width: '100%', padding: '12px 0', background: '#f57b46', border: 'none',
             borderRadius: 10, color: '#fff', fontSize: 14, fontWeight: 600,
@@ -187,16 +196,14 @@ export default function LoginPage() {
         padding: '36px 24px 28px', textAlign: 'center' }}>
         <img src={LOGO} alt="Little Foodies"
           style={{ height: 64, width: 'auto', marginBottom: 12 }} />
-        <p style={{ margin: 0, fontSize: 14, color: '#c2410c',
-          fontWeight: 500, lineHeight: 1.5 }}>
+        <p style={{ margin: 0, fontSize: 14, color: '#c2410c', fontWeight: 500 }}>
           Because every family deserves a great meal out.
         </p>
       </div>
 
       {/* Tab switcher */}
-      <div style={{ display: 'flex', background: '#fff',
-        borderBottom: '0.5px solid #e5e7eb' }}>
-        {['signup', 'login'].map(m => (
+      <div style={{ display: 'flex', background: '#fff', borderBottom: '0.5px solid #e5e7eb' }}>
+        {['login', 'signup'].map(m => (
           <button key={m} onClick={() => { setMode(m); setError(null) }}
             style={{ flex: 1, padding: '14px 0', background: 'none', border: 'none',
               fontSize: 13, fontWeight: 600, cursor: 'pointer', ...font,
@@ -210,120 +217,13 @@ export default function LoginPage() {
       <div style={{ flex: 1, padding: '24px 20px 40px', maxWidth: 480,
         width: '100%', margin: '0 auto', boxSizing: 'border-box' }}>
 
-        {/* ── SIGN UP ─────────────────────────────────── */}
-        {mode === 'signup' && (
-          <>
-            <div style={{ fontSize: 18, fontWeight: 700, color: '#111827',
-              marginBottom: 4 }}>
-              Join Little Foodies 🎉
-            </div>
-            <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 20,
-              lineHeight: 1.6 }}>
-              Create your free account and start discovering family-friendly restaurants near you.
-            </div>
-
-            {/* First + Last name */}
-            <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
-              <div style={{ flex: 1 }}>
-                <label style={lbl}>First name</label>
-                <input style={inp} value={form.firstName}
-                  onChange={e => update('firstName', e.target.value)}
-                  onFocus={focusStyle} onBlur={blurStyle}
-                  placeholder="Heidi" autoComplete="given-name" />
-              </div>
-              <div style={{ flex: 1 }}>
-                <label style={lbl}>Last name</label>
-                <input style={inp} value={form.lastName}
-                  onChange={e => update('lastName', e.target.value)}
-                  onFocus={focusStyle} onBlur={blurStyle}
-                  placeholder="Smith" autoComplete="family-name" />
-              </div>
-            </div>
-
-            {/* Zip + Kids side by side */}
-            <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
-              <div style={{ flex: 1 }}>
-                <label style={lbl}>Zip code</label>
-                <input style={inp} value={form.zip}
-                  onChange={e => update('zip', e.target.value)}
-                  onFocus={focusStyle} onBlur={blurStyle}
-                  placeholder="07083" inputMode="numeric" maxLength={5}
-                  autoComplete="postal-code" />
-              </div>
-              <div style={{ flex: 1 }}>
-                <label style={lbl}>Number of kids</label>
-                <select value={form.kids}
-                  onChange={e => update('kids', e.target.value)}
-                  style={{ ...inp, appearance: 'none', cursor: 'pointer',
-                    backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236b7280' d='M6 8L1 3h10z'/%3E%3C/svg%3E\")",
-                    backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center',
-                    paddingRight: 32 }}>
-                  {KIDS_OPTIONS.map(o => (
-                    <option key={o.value} value={o.value}>{o.label}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {/* Email */}
-            <div style={{ marginBottom: 14 }}>
-              <label style={lbl}>Email address</label>
-              <input style={inp} type="email" value={form.email}
-                onChange={e => update('email', e.target.value)}
-                onFocus={focusStyle} onBlur={blurStyle}
-                placeholder="heidi@email.com" autoComplete="email" />
-            </div>
-
-            {/* Password */}
-            <div style={{ marginBottom: 20 }}>
-              <label style={lbl}>Password</label>
-              <input style={inp} type="password" value={form.password}
-                onChange={e => update('password', e.target.value)}
-                onFocus={focusStyle} onBlur={blurStyle}
-                placeholder="At least 6 characters"
-                autoComplete="new-password" />
-            </div>
-
-            {/* Error */}
-            {error && (
-              <div style={{ padding: '10px 14px', background: '#fef2f2',
-                border: '0.5px solid #fecaca', borderRadius: 10,
-                fontSize: 12, color: '#dc2626', marginBottom: 16 }}>
-                {error}
-              </div>
-            )}
-
-            <button onClick={handleSignup} disabled={loading}
-              style={{ width: '100%', padding: '14px 0', background: '#f57b46',
-                border: 'none', borderRadius: 12, color: '#fff', fontSize: 14,
-                fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer',
-                opacity: loading ? .6 : 1, ...font,
-                boxShadow: '0 4px 14px rgba(245,123,70,.35)', marginBottom: 16 }}>
-              {loading ? 'Creating account…' : 'Create free account 🎉'}
-            </button>
-
-            {/* Points incentive */}
-            <div style={{ background: '#e6f7f5', border: '0.5px solid #99ddd6',
-              borderRadius: 10, padding: '10px 14px',
-              display: 'flex', gap: 10, alignItems: 'center' }}>
-              <span style={{ fontSize: 18 }}>🏅</span>
-              <div style={{ fontSize: 11, color: '#065f55', lineHeight: 1.5 }}>
-                <strong>Start earning right away!</strong> Vote on amenities, add restaurants,
-                and invite friends to climb the tiers.
-              </div>
-            </div>
-          </>
-        )}
-
         {/* ── SIGN IN ─────────────────────────────────── */}
         {mode === 'login' && (
           <>
-            <div style={{ fontSize: 18, fontWeight: 700, color: '#111827',
-              marginBottom: 4 }}>
+            <div style={{ fontSize: 18, fontWeight: 700, color: '#111827', marginBottom: 4 }}>
               Welcome back! 👋
             </div>
-            <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 24,
-              lineHeight: 1.6 }}>
+            <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 24, lineHeight: 1.6 }}>
               Sign in to see your points, favorites, and help verify restaurants near you.
             </div>
 
@@ -347,8 +247,7 @@ export default function LoginPage() {
             <div style={{ textAlign: 'right', marginBottom: 16 }}>
               <button onClick={() => { setMode('forgot'); setError(null) }}
                 style={{ background: 'none', border: 'none', color: '#f57b46',
-                  fontSize: 12, fontWeight: 600, cursor: 'pointer',
-                  fontFamily: "'Montserrat', sans-serif" }}>
+                  fontSize: 12, fontWeight: 600, cursor: 'pointer', ...font }}>
                 Forgot password?
               </button>
             </div>
@@ -356,7 +255,8 @@ export default function LoginPage() {
             {error && (
               <div style={{ padding: '10px 14px', background: '#fef2f2',
                 border: '0.5px solid #fecaca', borderRadius: 10,
-                fontSize: 12, color: '#dc2626', marginBottom: error.includes('confirm') ? 8 : 16 }}>
+                fontSize: 12, color: '#dc2626',
+                marginBottom: error.includes('confirm') ? 8 : 16 }}>
                 {error}
               </div>
             )}
@@ -365,7 +265,7 @@ export default function LoginPage() {
                 style={{ width: '100%', padding: '10px 0', background: '#fff3ee',
                   border: '1px solid #fdc9b0', borderRadius: 10, fontSize: 12,
                   fontWeight: 600, color: '#c2410c', cursor: 'pointer',
-                  marginBottom: 16, fontFamily: "'Montserrat', sans-serif" }}>
+                  marginBottom: 16, ...font }}>
                 📬 Resend confirmation email
               </button>
             )}
@@ -390,7 +290,162 @@ export default function LoginPage() {
           </>
         )}
 
-        {/* ── FORGOT PASSWORD ──────────────────────── */}
+        {/* ── SIGN UP ─────────────────────────────────── */}
+        {mode === 'signup' && (
+          <>
+            <div style={{ fontSize: 18, fontWeight: 700, color: '#111827', marginBottom: 4 }}>
+              Join Little Foodies 🎉
+            </div>
+            <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 20, lineHeight: 1.6 }}>
+              Create your free account and start discovering family-friendly restaurants near you.
+            </div>
+
+            {/* Account type selector */}
+            <div style={{ marginBottom: 20 }}>
+              <label style={lbl}>I am a...</label>
+              <div style={{ display: 'flex', gap: 10, marginTop: 6 }}>
+                {[
+                  { val: 'family', icon: '👨‍👩‍👧‍👦', label: 'Parent / Family',
+                    desc: 'Find family-friendly restaurants' },
+                  { val: 'restaurant_owner', icon: '🍽️', label: 'Restaurant Owner',
+                    desc: 'Claim and manage my restaurant' },
+                ].map(t => (
+                  <div key={t.val} onClick={() => setAccountType(t.val)}
+                    style={{ flex: 1, padding: '12px 10px', borderRadius: 12, cursor: 'pointer',
+                      border: accountType === t.val ? '2px solid #f57b46' : '1.5px solid #e5e7eb',
+                      background: accountType === t.val ? '#fff3ee' : '#fff',
+                      textAlign: 'center', transition: 'all .15s' }}>
+                    <div style={{ fontSize: 24, marginBottom: 4 }}>{t.icon}</div>
+                    <div style={{ fontSize: 12, fontWeight: 600,
+                      color: accountType === t.val ? '#c2410c' : '#374151' }}>
+                      {t.label}
+                    </div>
+                    <div style={{ fontSize: 10, color: '#9ca3af', marginTop: 2 }}>{t.desc}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Name */}
+            <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
+              <div style={{ flex: 1 }}>
+                <label style={lbl}>First name</label>
+                <input style={inp} value={form.firstName}
+                  onChange={e => update('firstName', e.target.value)}
+                  onFocus={focusStyle} onBlur={blurStyle}
+                  placeholder="Heidi" autoComplete="given-name" />
+              </div>
+              <div style={{ flex: 1 }}>
+                <label style={lbl}>Last name</label>
+                <input style={inp} value={form.lastName}
+                  onChange={e => update('lastName', e.target.value)}
+                  onFocus={focusStyle} onBlur={blurStyle}
+                  placeholder="Smith" autoComplete="family-name" />
+              </div>
+            </div>
+
+            {/* Family-specific fields */}
+            {accountType === 'family' && (
+              <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
+                <div style={{ flex: 1 }}>
+                  <label style={lbl}>Zip code</label>
+                  <input style={inp} value={form.zip}
+                    onChange={e => update('zip', e.target.value)}
+                    onFocus={focusStyle} onBlur={blurStyle}
+                    placeholder="07083" inputMode="numeric" maxLength={5} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={lbl}>Number of kids</label>
+                  <select value={form.kids} onChange={e => update('kids', e.target.value)}
+                    style={{ ...inp, appearance: 'none', cursor: 'pointer',
+                      backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236b7280' d='M6 8L1 3h10z'/%3E%3C/svg%3E\")",
+                      backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center',
+                      paddingRight: 32 }}>
+                    {KIDS_OPTIONS.map(o => (
+                      <option key={o.value} value={o.value}>{o.label}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            )}
+
+            {/* Restaurant owner fields */}
+            {accountType === 'restaurant_owner' && (
+              <>
+                <div style={{ background: '#e8f4fd', border: '0.5px solid #9ed4f6',
+                  borderRadius: 10, padding: '12px 14px', marginBottom: 14,
+                  fontSize: 12, color: '#0552a0', lineHeight: 1.6 }}>
+                  🍽️ After signing up, we'll review your claim request and link you to your restaurant within 1-2 business days.
+                </div>
+                <div style={{ marginBottom: 14 }}>
+                  <label style={lbl}>Restaurant name</label>
+                  <input style={inp} value={form.restaurantName}
+                    onChange={e => update('restaurantName', e.target.value)}
+                    onFocus={focusStyle} onBlur={blurStyle}
+                    placeholder="Pizza Piazza" />
+                </div>
+                <div style={{ marginBottom: 14 }}>
+                  <label style={lbl}>Business phone</label>
+                  <input style={inp} value={form.businessPhone}
+                    onChange={e => update('businessPhone', e.target.value)}
+                    onFocus={focusStyle} onBlur={blurStyle}
+                    placeholder="(908) 555-1234" inputMode="tel" />
+                </div>
+              </>
+            )}
+
+            {/* Email + Password */}
+            <div style={{ marginBottom: 14 }}>
+              <label style={lbl}>Email address</label>
+              <input style={inp} type="email" value={form.email}
+                onChange={e => update('email', e.target.value)}
+                onFocus={focusStyle} onBlur={blurStyle}
+                placeholder="heidi@email.com" autoComplete="email" />
+            </div>
+
+            <div style={{ marginBottom: 20 }}>
+              <label style={lbl}>Password</label>
+              <input style={inp} type="password" value={form.password}
+                onChange={e => update('password', e.target.value)}
+                onFocus={focusStyle} onBlur={blurStyle}
+                placeholder="At least 6 characters" autoComplete="new-password" />
+            </div>
+
+            {error && (
+              <div style={{ padding: '10px 14px', background: '#fef2f2',
+                border: '0.5px solid #fecaca', borderRadius: 10,
+                fontSize: 12, color: '#dc2626', marginBottom: 16 }}>
+                {error}
+              </div>
+            )}
+
+            <button onClick={handleSignup} disabled={loading}
+              style={{ width: '100%', padding: '14px 0', background: '#f57b46',
+                border: 'none', borderRadius: 12, color: '#fff', fontSize: 14,
+                fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer',
+                opacity: loading ? .6 : 1, ...font,
+                boxShadow: '0 4px 14px rgba(245,123,70,.35)', marginBottom: 16 }}>
+              {loading ? 'Creating account…'
+                : accountType === 'restaurant_owner'
+                  ? 'Create account & submit claim'
+                  : 'Create free account 🎉'}
+            </button>
+
+            {accountType === 'family' && (
+              <div style={{ background: '#e6f7f5', border: '0.5px solid #99ddd6',
+                borderRadius: 10, padding: '10px 14px',
+                display: 'flex', gap: 10, alignItems: 'center' }}>
+                <span style={{ fontSize: 18 }}>🏅</span>
+                <div style={{ fontSize: 11, color: '#065f55', lineHeight: 1.5 }}>
+                  <strong>Start earning right away!</strong> Vote on amenities, add restaurants,
+                  and invite friends to climb the tiers.
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* ── FORGOT PASSWORD ──────────────────────────── */}
         {mode === 'forgot' && (
           <>
             {resetSent ? (
@@ -401,7 +456,6 @@ export default function LoginPage() {
                 </div>
                 <div style={{ fontSize: 13, color: '#6b7280', lineHeight: 1.7, marginBottom: 24 }}>
                   We sent a password reset link to <strong>{form.email}</strong>.
-                  Click it to set a new password.
                 </div>
                 <button onClick={() => { setMode('login'); setResetSent(false); setError(null) }}
                   style={{ width: '100%', padding: '13px 0', background: '#f57b46',
@@ -418,7 +472,6 @@ export default function LoginPage() {
                 <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 24, lineHeight: 1.6 }}>
                   Enter the email you signed up with and we'll send you a reset link.
                 </div>
-
                 <div style={{ marginBottom: 20 }}>
                   <label style={lbl}>Email address</label>
                   <input style={inp} type="email" value={form.email}
@@ -427,7 +480,6 @@ export default function LoginPage() {
                     placeholder="heidi@email.com" autoComplete="email"
                     onKeyDown={e => e.key === 'Enter' && handleForgotPassword()} />
                 </div>
-
                 {error && (
                   <div style={{ padding: '10px 14px', background: '#fef2f2',
                     border: '0.5px solid #fecaca', borderRadius: 10,
@@ -435,7 +487,6 @@ export default function LoginPage() {
                     {error}
                   </div>
                 )}
-
                 <button onClick={handleForgotPassword} disabled={loading}
                   style={{ width: '100%', padding: '14px 0', background: '#f57b46',
                     border: 'none', borderRadius: 12, color: '#fff', fontSize: 14,
@@ -444,7 +495,6 @@ export default function LoginPage() {
                     boxShadow: '0 4px 14px rgba(245,123,70,.35)', marginBottom: 16 }}>
                   {loading ? 'Sending…' : 'Send reset link'}
                 </button>
-
                 <div style={{ textAlign: 'center' }}>
                   <button onClick={() => { setMode('login'); setError(null) }}
                     style={{ background: 'none', border: 'none', color: '#6b7280',
