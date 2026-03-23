@@ -18,6 +18,17 @@ const FILTERS = [
 const BG = ['#fff3ee','#fefae8','#e6f7f5','#fef0f8','#e8f4fd','#f0fdf4']
 const font = { fontFamily: "'Montserrat', sans-serif" }
 
+function InstagramIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
+      xmlns="http://www.w3.org/2000/svg">
+      <rect x="2" y="2" width="20" height="20" rx="5" stroke="currentColor" strokeWidth="2"/>
+      <circle cx="12" cy="12" r="4" stroke="currentColor" strokeWidth="2"/>
+      <circle cx="17.5" cy="6.5" r="1.2" fill="currentColor"/>
+    </svg>
+  )
+}
+
 export default function ExplorePage() {
   const { user } = useAuth()
   const [restaurants, setRestaurants] = useState([])
@@ -25,6 +36,7 @@ export default function ExplorePage() {
   const [activeFilters, setFilters]   = useState(new Set())
   const [loading, setLoading]         = useState(true)
   const [search, setSearch]           = useState('')
+  const [hasSearched, setHasSearched] = useState(false)
 
   useEffect(() => {
     getRestaurants().then(({ data }) => {
@@ -32,6 +44,18 @@ export default function ExplorePage() {
       setLoading(false)
     })
   }, [])
+
+  function handleSearchChange(val) {
+    setSearch(val)
+    if (val.trim().length > 0) setHasSearched(true)
+    else setHasSearched(false)
+  }
+
+  function clearSearch() {
+    setSearch('')
+    setHasSearched(false)
+    setFilters(new Set())
+  }
 
   function toggleFilter(id) {
     setFilters(prev => {
@@ -57,7 +81,7 @@ export default function ExplorePage() {
 
   const visible = restaurants
     .filter(r => {
-      if (!term) return true
+      if (!term) return false
       return (
         (r.zip     || '').toLowerCase().includes(term) ||
         (r.city    || '').toLowerCase().includes(term) ||
@@ -72,186 +96,293 @@ export default function ExplorePage() {
       )
     })
 
-  const noResults = !loading && term && visible.length === 0
-
-  function getSearchHint() {
-    if (search) return 'Showing results for "' + search + '"'
-    return 'Try "07083", "Clark", or "Pizza"'
-  }
-
-  function getCountLabel() {
-    if (loading) return 'Loading...'
-    return visible.length + ' restaurant' + (visible.length !== 1 ? 's' : '') + ' found'
-  }
+  const noResults = hasSearched && term && visible.length === 0
 
   return (
     <div style={{ ...font, background: '#f9fafb', minHeight: '100vh', paddingBottom: 80 }}>
 
-      {/* Header */}
-      <div style={{ background: '#fff', padding: '16px 16px 12px', borderBottom: '0.5px solid #e5e7eb' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-          <img src={LOGO} alt="Little Foodies" style={{ height: 44, width: 'auto' }} />
-          <div style={{ fontSize: 11, fontWeight: 600, color: '#c2410c',
-            background: '#fff3ee', border: '0.5px solid #fdc9b0',
-            padding: '4px 10px', borderRadius: 20 }}>
-            📍 Union · Clark · Cranford
-          </div>
-        </div>
+      {/* ── HERO / LANDING ─────────────────────────────────── */}
+      {!hasSearched && (
+        <div style={{ background: '#fff', paddingBottom: 0 }}>
 
-        {/* Search bar */}
-        <div style={{ position: 'relative', marginBottom: 6 }}>
-          <span style={{ position: 'absolute', left: 12, top: '50%',
-            transform: 'translateY(-50%)', fontSize: 15, pointerEvents: 'none' }}>
-            🔍
-          </span>
-          <input
-            type="text"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Search by zip code, city, or restaurant name..."
-            style={{
-              width: '100%', padding: '10px 36px 10px 36px',
-              border: search ? '1.5px solid #f57b46' : '1.5px solid #e5e7eb',
-              borderRadius: 10, fontSize: 12, outline: 'none',
-              background: search ? '#fff' : '#f9fafb',
-              boxSizing: 'border-box', ...font
-            }}
-          />
-          {search && (
-            <button onClick={() => setSearch('')}
-              style={{ position: 'absolute', right: 10, top: '50%',
-                transform: 'translateY(-50%)', background: '#e5e7eb',
-                border: 'none', borderRadius: '50%', width: 20, height: 20,
-                cursor: 'pointer', fontSize: 11, color: '#6b7280',
-                display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              ✕
-            </button>
-          )}
-        </div>
-        <p style={{ fontSize: 11, color: '#9ca3af' }}>{getSearchHint()}</p>
-      </div>
+          {/* Logo area */}
+          <div style={{ padding: '48px 24px 20px', textAlign: 'center' }}>
+            <img src={LOGO} alt="Little Foodies"
+              style={{ height: 80, width: 'auto', marginBottom: 16 }} />
+            <p style={{ fontSize: 16, color: '#6b7280', lineHeight: 1.5,
+              fontWeight: 500, maxWidth: 280, margin: '0 auto 28px' }}>
+              Because every family deserves a great meal out.
+            </p>
+          </div>
 
-      {/* Points banner */}
-      <div style={{ margin: '12px 16px 0', background: '#e8f4fd',
-        border: '0.5px solid #9ed4f6', borderRadius: 12,
-        padding: '11px 14px', display: 'flex', gap: 10, alignItems: 'center' }}>
-        <span style={{ fontSize: 18, flexShrink: 0 }}>🗳️</span>
-        <div>
-          <div style={{ fontSize: 12, fontWeight: 600, color: '#0552a0' }}>
-            Help verify family amenities
-          </div>
-          <div style={{ fontSize: 11, color: '#0552a0', opacity: .8 }}>
-            Earn <strong>5 pts</strong> per vote · 5 in a row = <strong>+20 pt bonus!</strong>
-          </div>
-        </div>
-      </div>
+          {/* Search bar — hero size */}
+          <div style={{ padding: '0 20px 24px' }}>
+            <div style={{ position: 'relative' }}>
+              <span style={{ position: 'absolute', left: 14, top: '50%',
+                transform: 'translateY(-50%)', fontSize: 18, pointerEvents: 'none' }}>
+                🔍
+              </span>
+              <input
+                type="text"
+                value={search}
+                onChange={e => handleSearchChange(e.target.value)}
+                placeholder="Search by zip code, city, or restaurant..."
+                style={{
+                  width: '100%', padding: '14px 44px 14px 44px',
+                  border: '2px solid #f57b46',
+                  borderRadius: 14, fontSize: 14, outline: 'none',
+                  background: '#fff', boxSizing: 'border-box', ...font,
+                  boxShadow: '0 4px 20px rgba(245,123,70,.15)'
+                }}
+              />
+            </div>
 
-      {/* Filter chips */}
-      <div style={{ display: 'flex', gap: 7, padding: '12px 16px', overflowX: 'auto', scrollbarWidth: 'none' }}>
-        {FILTERS.map(f => (
-          <div key={f.id} onClick={() => toggleFilter(f.id)}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 4,
-              padding: '6px 11px', borderRadius: 20, whiteSpace: 'nowrap',
-              border: activeFilters.has(f.id) ? '1.5px solid #f57b46' : '1.5px solid #e5e7eb',
-              background: activeFilters.has(f.id) ? '#fff3ee' : '#fff',
-              color: activeFilters.has(f.id) ? '#c2410c' : '#6b7280',
-              fontSize: 11, fontWeight: 600, cursor: 'pointer', flexShrink: 0
-            }}>
-            <span style={{ fontSize: 12 }}>{f.icon}</span>{f.label}
+            {/* Quick search pills */}
+            <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
+              {['Union, NJ', 'Clark, NJ', 'Cranford, NJ', '07083', '07066'].map(q => (
+                <button key={q} onClick={() => handleSearchChange(q)}
+                  style={{ padding: '6px 13px', background: '#fff',
+                    border: '1px solid #e5e7eb', borderRadius: 20,
+                    fontSize: 12, fontWeight: 500, color: '#6b7280',
+                    cursor: 'pointer', ...font }}>
+                  {q}
+                </button>
+              ))}
+            </div>
           </div>
-        ))}
-      </div>
 
-      {/* Count */}
-      <div style={{ fontSize: 11, fontWeight: 600, color: '#9ca3af',
-        padding: '0 16px', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '.06em' }}>
-        {getCountLabel()}
-      </div>
+          {/* Feature highlights */}
+          <div style={{ padding: '0 20px 0', display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {[
+              { icon: '✓', color: '#00a994', bg: '#e6f7f5', border: '#99ddd6',
+                title: 'Community verified',
+                desc: 'Real parents confirm high chairs, changing tables, kids menus & more' },
+              { icon: '🏅', color: '#f57b46', bg: '#fff3ee', border: '#fdc9b0',
+                title: 'Earn points',
+                desc: 'Vote on amenities, add restaurants, write reviews — earn rewards' },
+              { icon: '🎉', color: '#0692e5', bg: '#e8f4fd', border: '#9ed4f6',
+                title: 'Family events',
+                desc: 'Find family nights, cooking classes and kids events near you' },
+            ].map(f => (
+              <div key={f.title} style={{ display: 'flex', gap: 12, alignItems: 'flex-start',
+                padding: '12px 14px', background: f.bg,
+                border: '0.5px solid ' + f.border, borderRadius: 12 }}>
+                <div style={{ width: 36, height: 36, borderRadius: 10, background: '#fff',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 16, flexShrink: 0, color: f.color, fontWeight: 700 }}>
+                  {f.icon}
+                </div>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: '#111827', marginBottom: 2 }}>
+                    {f.title}
+                  </div>
+                  <div style={{ fontSize: 11, color: '#6b7280', lineHeight: 1.5 }}>{f.desc}</div>
+                </div>
+              </div>
+            ))}
+          </div>
 
-      {/* No results */}
-      {noResults && (
-        <div style={{ margin: '0 16px', background: '#fff', border: '0.5px solid #e5e7eb',
-          borderRadius: 14, padding: '32px 20px', textAlign: 'center' }}>
-          <div style={{ fontSize: 48, marginBottom: 12 }}>🗺️</div>
-          <div style={{ fontSize: 15, fontWeight: 600, color: '#111827', marginBottom: 6 }}>
-            No restaurants found for "{search}"
-          </div>
-          <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 20, lineHeight: 1.6 }}>
-            We don't have any family-friendly restaurants listed there yet.
-            Be the first to add one and earn <strong>50 points!</strong>
-          </div>
-          <Link to="/add" style={{ display: 'inline-block', padding: '11px 24px',
-            background: '#f57b46', color: '#fff', borderRadius: 10,
-            fontSize: 13, fontWeight: 600, textDecoration: 'none',
-            boxShadow: '0 4px 14px rgba(245,123,70,.35)' }}>
-            + Add a restaurant
-          </Link>
-          <div style={{ marginTop: 16 }}>
-            <button onClick={() => setSearch('')}
-              style={{ background: 'none', border: 'none', color: '#6b7280',
-                fontSize: 12, cursor: 'pointer', textDecoration: 'underline', ...font }}>
-              Clear search and see all restaurants
-            </button>
+          {/* Instagram footer */}
+          <div style={{ padding: '28px 20px 20px', textAlign: 'center',
+            borderTop: '0.5px solid #f3f4f6', marginTop: 24 }}>
+            <a href="https://www.instagram.com/littlefoodiesapp/"
+              target="_blank" rel="noopener noreferrer"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 8,
+                textDecoration: 'none', color: '#6b7280',
+                padding: '10px 20px', borderRadius: 20,
+                border: '1px solid #e5e7eb', background: '#fff',
+                fontSize: 13, fontWeight: 600, ...font,
+                transition: 'all .15s' }}>
+              <span style={{ background: 'linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888)',
+                WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
+                display: 'flex', alignItems: 'center' }}>
+                <InstagramIcon />
+              </span>
+              <span>Follow us @littlefoodiesapp</span>
+            </a>
+            <p style={{ fontSize: 10, color: '#d1d5db', marginTop: 12 }}>
+              Little Foodies · Union, Clark & Cranford, NJ
+            </p>
           </div>
         </div>
       )}
 
-      {/* Cards */}
-      {!noResults && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '0 16px' }}>
-          {visible.map((r, i) => {
-            const verifiedAms = (r.amenities || []).filter(a => a.is_verified).slice(0, 3)
-            const isPending   = r.status === 'pending'
-            return (
-              <Link key={r.id} to={'/restaurant/' + r.id} style={{ textDecoration: 'none', color: 'inherit' }}>
-                <div style={{ background: '#fff', border: '0.5px solid #e5e7eb', borderRadius: 14, overflow: 'hidden' }}>
-                  <div style={{ height: 90, background: BG[i % BG.length],
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 42 }}>
-                    {r.emoji || '🍽️'}
-                  </div>
-                  <div style={{ padding: '11px 13px' }}>
-                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 2 }}>
-                      <div style={{ fontSize: 15, fontWeight: 600, color: '#111827' }}>{r.name}</div>
-                      <button onClick={e => toggleFav(e, r)}
-                        style={{ background: 'none', border: 'none', fontSize: 18, cursor: 'pointer',
-                          color: favIds.has(r.id) ? '#f46ab8' : '#d1d5db', padding: 0, flexShrink: 0, marginLeft: 8 }}>
-                        {favIds.has(r.id) ? '♥' : '♡'}
-                      </button>
-                    </div>
-                    <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 8 }}>{r.cuisine}</div>
-                    <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 8 }}>
-                      {isPending ? (
-                        <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 20, fontWeight: 600,
-                          background: '#fefae8', color: '#854d0e', border: '0.5px solid #fde9a0' }}>
-                          ⏳ Pending
-                        </span>
-                      ) : (
-                        <>
-                          <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 20, fontWeight: 600,
-                            background: '#e6f7f5', color: '#065f55', border: '0.5px solid #99ddd6' }}>
-                            ✓ Verified
-                          </span>
-                          {verifiedAms.map(a => (
-                            <span key={a.amenity_key} style={{ fontSize: 10, padding: '2px 7px',
-                              borderRadius: 20, background: '#e6f7f5', color: '#065f55', border: '0.5px solid #99ddd6' }}>
-                              {FILTERS.find(x => x.id === a.amenity_key)?.icon}
-                            </span>
-                          ))}
-                        </>
-                      )}
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                      paddingTop: 8, borderTop: '0.5px solid #f3f4f6' }}>
-                      <span style={{ fontSize: 10, color: '#9ca3af' }}>{r.hours}</span>
-                      {r.city && <span style={{ fontSize: 10, color: '#9ca3af' }}>{r.city}, {r.state}</span>}
-                    </div>
-                  </div>
-                </div>
+      {/* ── SEARCH RESULTS ─────────────────────────────────── */}
+      {hasSearched && (
+        <>
+          {/* Compact header when searching */}
+          <div style={{ background: '#fff', padding: '12px 16px',
+            borderBottom: '0.5px solid #e5e7eb', position: 'sticky', top: 0, zIndex: 10 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+              <img src={LOGO} alt="Little Foodies" style={{ height: 28, width: 'auto' }} />
+              <div style={{ flex: 1 }} />
+              <button onClick={clearSearch}
+                style={{ fontSize: 11, color: '#f57b46', fontWeight: 600,
+                  background: 'none', border: 'none', cursor: 'pointer', ...font }}>
+                ← Home
+              </button>
+            </div>
+            {/* Search bar compact */}
+            <div style={{ position: 'relative' }}>
+              <span style={{ position: 'absolute', left: 11, top: '50%',
+                transform: 'translateY(-50%)', fontSize: 14, pointerEvents: 'none' }}>
+                🔍
+              </span>
+              <input
+                type="text"
+                value={search}
+                onChange={e => handleSearchChange(e.target.value)}
+                placeholder="Search zip, city, or restaurant..."
+                style={{ width: '100%', padding: '9px 36px 9px 33px',
+                  border: '1.5px solid #f57b46', borderRadius: 10, fontSize: 12,
+                  outline: 'none', background: '#fff', boxSizing: 'border-box', ...font }}
+              />
+              {search && (
+                <button onClick={clearSearch}
+                  style={{ position: 'absolute', right: 10, top: '50%',
+                    transform: 'translateY(-50%)', background: '#e5e7eb',
+                    border: 'none', borderRadius: '50%', width: 20, height: 20,
+                    cursor: 'pointer', fontSize: 11, color: '#6b7280',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  ✕
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Points banner */}
+          <div style={{ margin: '10px 16px 0', background: '#e8f4fd',
+            border: '0.5px solid #9ed4f6', borderRadius: 12,
+            padding: '10px 14px', display: 'flex', gap: 10, alignItems: 'center' }}>
+            <span style={{ fontSize: 16, flexShrink: 0 }}>🗳️</span>
+            <div style={{ fontSize: 11, color: '#0552a0' }}>
+              <strong>Help verify family amenities</strong> · Earn 5 pts per vote · 5 in a row = +20 pt bonus!
+            </div>
+          </div>
+
+          {/* Filter chips */}
+          <div style={{ display: 'flex', gap: 7, padding: '10px 16px',
+            overflowX: 'auto', scrollbarWidth: 'none' }}>
+            {FILTERS.map(f => (
+              <div key={f.id} onClick={() => toggleFilter(f.id)}
+                style={{ display: 'flex', alignItems: 'center', gap: 4,
+                  padding: '6px 11px', borderRadius: 20, whiteSpace: 'nowrap',
+                  border: activeFilters.has(f.id) ? '1.5px solid #f57b46' : '1.5px solid #e5e7eb',
+                  background: activeFilters.has(f.id) ? '#fff3ee' : '#fff',
+                  color: activeFilters.has(f.id) ? '#c2410c' : '#6b7280',
+                  fontSize: 11, fontWeight: 600, cursor: 'pointer', flexShrink: 0 }}>
+                <span style={{ fontSize: 12 }}>{f.icon}</span>{f.label}
+              </div>
+            ))}
+          </div>
+
+          {/* Count */}
+          <div style={{ fontSize: 11, fontWeight: 600, color: '#9ca3af',
+            padding: '0 16px', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '.06em' }}>
+            {loading ? 'Loading...' : visible.length + ' restaurant' + (visible.length !== 1 ? 's' : '') + ' found'}
+          </div>
+
+          {/* No results */}
+          {noResults && (
+            <div style={{ margin: '0 16px', background: '#fff', border: '0.5px solid #e5e7eb',
+              borderRadius: 14, padding: '32px 20px', textAlign: 'center' }}>
+              <div style={{ fontSize: 48, marginBottom: 12 }}>🗺️</div>
+              <div style={{ fontSize: 15, fontWeight: 600, color: '#111827', marginBottom: 6 }}>
+                No restaurants found for "{search}"
+              </div>
+              <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 20, lineHeight: 1.6 }}>
+                We don't have any family-friendly restaurants listed there yet.
+                Be the first to add one and earn <strong>50 points!</strong>
+              </div>
+              <Link to="/add" style={{ display: 'inline-block', padding: '11px 24px',
+                background: '#f57b46', color: '#fff', borderRadius: 10,
+                fontSize: 13, fontWeight: 600, textDecoration: 'none',
+                boxShadow: '0 4px 14px rgba(245,123,70,.35)' }}>
+                + Add a restaurant
               </Link>
-            )
-          })}
-        </div>
+              <div style={{ marginTop: 14 }}>
+                <button onClick={clearSearch}
+                  style={{ background: 'none', border: 'none', color: '#6b7280',
+                    fontSize: 12, cursor: 'pointer', textDecoration: 'underline', ...font }}>
+                  ← Back to home
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Cards */}
+          {!noResults && visible.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '0 16px' }}>
+              {visible.map((r, i) => {
+                const verifiedAms = (r.amenities || []).filter(a => a.is_verified).slice(0, 3)
+                const isPending   = r.status === 'pending'
+                return (
+                  <Link key={r.id} to={'/restaurant/' + r.id}
+                    style={{ textDecoration: 'none', color: 'inherit' }}>
+                    <div style={{ background: '#fff', border: '0.5px solid #e5e7eb',
+                      borderRadius: 14, overflow: 'hidden' }}>
+                      <div style={{ height: 90, background: BG[i % BG.length],
+                        display: 'flex', alignItems: 'center',
+                        justifyContent: 'center', fontSize: 42 }}>
+                        {r.emoji || '🍽️'}
+                      </div>
+                      <div style={{ padding: '11px 13px' }}>
+                        <div style={{ display: 'flex', alignItems: 'flex-start',
+                          justifyContent: 'space-between', marginBottom: 2 }}>
+                          <div style={{ fontSize: 15, fontWeight: 600, color: '#111827' }}>{r.name}</div>
+                          <button onClick={e => toggleFav(e, r)}
+                            style={{ background: 'none', border: 'none', fontSize: 18,
+                              cursor: 'pointer', color: favIds.has(r.id) ? '#f46ab8' : '#d1d5db',
+                              padding: 0, flexShrink: 0, marginLeft: 8 }}>
+                            {favIds.has(r.id) ? '♥' : '♡'}
+                          </button>
+                        </div>
+                        <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 8 }}>{r.cuisine}</div>
+                        <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 8 }}>
+                          {isPending ? (
+                            <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 20,
+                              fontWeight: 600, background: '#fefae8', color: '#854d0e',
+                              border: '0.5px solid #fde9a0' }}>⏳ Pending</span>
+                          ) : (
+                            <>
+                              <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 20,
+                                fontWeight: 600, background: '#e6f7f5', color: '#065f55',
+                                border: '0.5px solid #99ddd6' }}>✓ Verified</span>
+                              {verifiedAms.map(a => (
+                                <span key={a.amenity_key} style={{ fontSize: 10, padding: '2px 7px',
+                                  borderRadius: 20, background: '#e6f7f5', color: '#065f55',
+                                  border: '0.5px solid #99ddd6' }}>
+                                  {FILTERS.find(x => x.id === a.amenity_key)?.icon}
+                                </span>
+                              ))}
+                            </>
+                          )}
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center',
+                          justifyContent: 'space-between', paddingTop: 8,
+                          borderTop: '0.5px solid #f3f4f6' }}>
+                          <span style={{ fontSize: 10, color: '#9ca3af' }}>{r.hours}</span>
+                          {r.city && <span style={{ fontSize: 10, color: '#9ca3af' }}>{r.city}, {r.state}</span>}
+                        </div>
+                      </div>
+                    </div>
+                  </Link>
+                )
+              })}
+            </div>
+          )}
+
+          {/* Instagram footer in search results too */}
+          <div style={{ padding: '24px 20px 8px', textAlign: 'center' }}>
+            <a href="https://www.instagram.com/littlefoodiesapp/"
+              target="_blank" rel="noopener noreferrer"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 7,
+                textDecoration: 'none', color: '#9ca3af', fontSize: 11, ...font }}>
+              <InstagramIcon />
+              @littlefoodiesapp
+            </a>
+          </div>
+        </>
       )}
     </div>
   )
