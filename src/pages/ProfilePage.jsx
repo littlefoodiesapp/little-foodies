@@ -1,61 +1,418 @@
+import { useEffect, useState, useRef } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
-import { getPointsHistory, signOut } from '../lib/api'
-import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+
+const font = { fontFamily: "'Montserrat', sans-serif" }
+
+const TIERS = [
+  { name: 'Sprout',   icon: '🌱', min: 0,    max: 99,   color: '#86efac', text: '#166534' },
+  { name: 'Explorer', icon: '🗺️', min: 100,  max: 499,  color: '#93c5fd', text: '#1e40af' },
+  { name: 'Guide',    icon: '🧭', min: 500,  max: 999,  color: '#fcd34d', text: '#92400e' },
+  { name: 'Champion', icon: '🏆', min: 1000, max: 2499, color: '#f97316', text: '#7c2d12' },
+  { name: 'Legend',   icon: '⭐', min: 2500, max: Infinity, color: '#f46ab8', text: '#831843' },
+]
+
+function getTier(pts) {
+  return TIERS.findLast(t => pts >= t.min) || TIERS[0]
+}
+function getNextTier(pts) {
+  return TIERS.find(t => t.min > pts) || null
+}
+
+function formatDate(dateStr) {
+  if (!dateStr) return null
+  const d = new Date(dateStr)
+  return d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+}
+
+const ACTION_LABELS = {
+  vote:            { label: 'Voted on amenity',    icon: '🗳️', color: '#0692e5' },
+  streak_bonus:    { label: 'Streak bonus!',        icon: '🔥', color: '#f57b46' },
+  add_restaurant:  { label: 'Added a restaurant',   icon: '📍', color: '#00a994' },
+  review:          { label: 'Wrote a review',        icon: '⭐', color: '#fbca3f' },
+  photo:           { label: 'Added a photo',         icon: '📸', color: '#f46ab8' },
+  event_rsvp:      { label: 'RSVP\'d to an event',  icon: '🎉', color: '#0692e5' },
+  referral:        { label: 'Referred a friend',     icon: '👥', color: '#00a994' },
+}
 
 export default function ProfilePage() {
-  const { profile, session } = useAuth()
-  const [history, setHistory] = useState([])
+  const { user, logout } = useAuth()
   const navigate = useNavigate()
+  const fileRef  = useRef()
+
+  const [profile, setProfile]       = useState(null)
+  const [history, setHistory]       = useState([])
+  const [favorites, setFavorites]   = useState([])
+  const [uploading, setUploading]   = useState(false)
+  const [editName, setEditName]     = useState(false)
+  const [nameVal, setNameVal]       = useState('')
+  const [loading, setLoading]       = useState(true)
+  const [activeTab, setActiveTab]   = useState('overview')
 
   useEffect(() => {
-    if (!session) return
-    getPointsHistory(session.user.id).then(({ data }) => setHistory(data || []))
-  }, [session])
+    if (user) loadAll()
+  }, [user])
 
-  async function handleSignOut() {
-    await signOut()
-    navigate('/')
+  async function loadAll() {
+    const [profRes, histRes, favRes] = await Promise.all([
+      supabase.from('profiles').select('*').eq('id', user.id).single(),
+      supabase.from('points_ledger').select('*').eq('user_id', user.id)
+        .order('created_at', { ascending: false }).limit(50),
+      supabase.from('favorites')
+        .select('restaurant_id, restaurants(id, name, emoji, cuisine, city, state, status)')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false }),
+    ])
+    setProfile(profRes.data)
+    setNameVal(profRes.data?.display_name || '')
+    setHistory(histRes.data || [])
+    setFavorites(favRes.data || [])
+    setLoading(false)
   }
 
-  if (!profile) return <div style={{ padding: 32 }}>Loading profile...</div>
+  async function uploadAvatar(e) {
+    const file = e.target.files[0]
+    if (!file) return
+    setUploading(true)
+    const ext  = file.name.split('.').pop()
+    const path = 'avatars/' + user.id + '.' + ext
+    const { error: upErr } = await supabase.storage
+      .from('restaurant-photos')
+      .upload(path, file, { upsert: true })
+    if (upErr) { alert(upErr.message); setUploading(false); return }
+    const { data: urlData } = supabase.storage.from('restaurant-photos').getPublicUrl(path)
+    await supabase.from('profiles').update({ avatar_url: urlData.publicUrl }).eq('id', user.id)
+    setProfile(prev => ({ ...prev, avatar_url: urlData.publicUrl }))
+    setUploading(false)
+  }
+
+  async function saveName() {
+    if (!nameVal.trim()) return
+    await supabase.from('profiles').update({ display_name: nameVal.trim() }).eq('id', user.id)
+    setProfile(prev => ({ ...prev, display_name: nameVal.trim() }))
+    setEditName(false)
+  }
+
+  async function removeFavorite(restaurantId) {
+    await supabase.from('favorites')
+      .delete().eq('user_id', user.id).eq('restaurant_id', restaurantId)
+    setFavorites(prev => prev.filter(f => f.restaurant_id !== restaurantId))
+  }
+
+  if (loading) return (
+    <div style={{ ...font, padding: 32, textAlign: 'center', color: '#6b7280' }}>
+      Loading profile...
+    </div>
+  )
+
+  const pts      = profile?.points || 0
+  const tier     = getTier(pts)
+  const nextTier = getNextTier(pts)
+  const pct      = nextTier
+    ? Math.round(((pts - tier.min) / (nextTier.min - tier.min)) * 100)
+    : 100
+  const joinDate = formatDate(profile?.created_at || user?.created_at)
+  const totalVotes = history.filter(h => h.action === 'vote').length
+  const totalAdded = history.filter(h => h.action === 'add_restaurant').length
+  const totalReviews = history.filter(h => h.action === 'review').length
+
+  const tabs = [
+    { id: 'overview',   label: 'Overview' },
+    { id: 'favorites',  label: 'Favorites' + (favorites.length > 0 ? ' (' + favorites.length + ')' : '') },
+    { id: 'activity',   label: 'Activity' },
+  ]
 
   return (
-    <div style={{ maxWidth: 480, margin: '0 auto', padding: '0 0 80px' }}>
-      <div style={{ background: '#f57b46', padding: '24px 20px 20px' }}>
-        <div style={{ width: 52, height: 52, borderRadius: '50%', background: 'rgba(255,255,255,.25)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 20, fontWeight: 500, color: '#fff', marginBottom: 12 }}>
-          {(profile.display_name || 'U').charAt(0).toUpperCase()}
+    <div style={{ ...font, paddingBottom: 80 }}>
+
+      {/* Header */}
+      <div style={{ background: 'linear-gradient(135deg, #f57b46 0%, #f46ab8 100%)',
+        padding: '24px 20px 20px' }}>
+
+        {/* Avatar */}
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, marginBottom: 16 }}>
+          <div style={{ position: 'relative', flexShrink: 0 }}>
+            <div onClick={() => fileRef.current?.click()}
+              style={{ width: 72, height: 72, borderRadius: '50%',
+                background: 'rgba(255,255,255,.25)', border: '3px solid rgba(255,255,255,.6)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: 'pointer', overflow: 'hidden' }}>
+              {profile?.avatar_url ? (
+                <img src={profile.avatar_url} alt="Avatar"
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ) : (
+                <span style={{ fontSize: 28, fontWeight: 700, color: '#fff' }}>
+                  {(profile?.display_name || user?.email || 'U').charAt(0).toUpperCase()}
+                </span>
+              )}
+            </div>
+            <div style={{ position: 'absolute', bottom: 0, right: 0,
+              width: 22, height: 22, background: '#fff', borderRadius: '50%',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 11, cursor: 'pointer', boxShadow: '0 2px 6px rgba(0,0,0,.15)' }}
+              onClick={() => fileRef.current?.click()}>
+              {uploading ? '⏳' : '📷'}
+            </div>
+            <input type="file" ref={fileRef} accept="image/*"
+              onChange={uploadAvatar} style={{ display: 'none' }} />
+          </div>
+
+          <div style={{ flex: 1, paddingTop: 4 }}>
+            {editName ? (
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 4 }}>
+                <input value={nameVal} onChange={e => setNameVal(e.target.value)}
+                  style={{ flex: 1, padding: '5px 10px', borderRadius: 8, border: 'none',
+                    fontSize: 14, fontWeight: 600, ...font, outline: 'none' }}
+                  onKeyDown={e => e.key === 'Enter' && saveName()}
+                  autoFocus />
+                <button onClick={saveName}
+                  style={{ padding: '5px 12px', background: 'rgba(255,255,255,.3)',
+                    border: 'none', borderRadius: 8, color: '#fff', fontSize: 12,
+                    fontWeight: 600, cursor: 'pointer', ...font }}>
+                  Save
+                </button>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
+                <span style={{ fontSize: 18, fontWeight: 700, color: '#fff' }}>
+                  {profile?.display_name || 'Parent'}
+                </span>
+                <button onClick={() => setEditName(true)}
+                  style={{ background: 'rgba(255,255,255,.2)', border: 'none',
+                    borderRadius: 6, padding: '2px 8px', color: '#fff',
+                    fontSize: 10, cursor: 'pointer', fontWeight: 500, ...font }}>
+                  Edit
+                </button>
+              </div>
+            )}
+            {joinDate && (
+              <div style={{ fontSize: 11, color: 'rgba(255,255,255,.8)', marginBottom: 6 }}>
+                Joined {joinDate}
+              </div>
+            )}
+            {/* Tier badge */}
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5,
+              background: 'rgba(255,255,255,.2)', borderRadius: 20,
+              padding: '3px 10px' }}>
+              <span style={{ fontSize: 13 }}>{tier.icon}</span>
+              <span style={{ fontSize: 11, fontWeight: 600, color: '#fff' }}>{tier.name}</span>
+            </div>
+          </div>
+
+          {/* Points */}
+          <div style={{ textAlign: 'right', paddingTop: 4 }}>
+            <div style={{ fontSize: 28, fontWeight: 700, color: '#fff', lineHeight: 1 }}>{pts}</div>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,.8)' }}>points</div>
+          </div>
         </div>
-        <div style={{ fontSize: 18, fontWeight: 500, color: '#fff' }}>{profile.display_name}</div>
-        <div style={{ fontSize: 22, fontWeight: 500, color: '#fff', marginTop: 8 }}>
-          {profile.points || 0} pts
-        </div>
+
+        {/* Progress bar to next tier */}
+        {nextTier && (
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between',
+              fontSize: 10, color: 'rgba(255,255,255,.75)', marginBottom: 4 }}>
+              <span>{tier.name} · {pts} pts</span>
+              <span>{nextTier.icon} {nextTier.name} at {nextTier.min} pts</span>
+            </div>
+            <div style={{ height: 6, background: 'rgba(255,255,255,.25)', borderRadius: 3,
+              overflow: 'hidden' }}>
+              <div style={{ height: '100%', width: pct + '%', background: '#fff',
+                borderRadius: 3, transition: 'width .6s' }} />
+            </div>
+          </div>
+        )}
+        {!nextTier && (
+          <div style={{ fontSize: 12, color: 'rgba(255,255,255,.9)', fontWeight: 600,
+            textAlign: 'center' }}>
+            ⭐ You've reached Legend status — the highest tier!
+          </div>
+        )}
       </div>
 
-      <div style={{ padding: '16px 16px 0' }}>
-        <h2 style={{ fontSize: 14, fontWeight: 500, marginBottom: 10, textTransform: 'uppercase',
-          letterSpacing: '.05em', color: '#6b7280' }}>Recent activity</h2>
-        {history.length === 0 && (
-          <p style={{ color: '#6b7280', fontSize: 14 }}>No activity yet. Start voting or adding restaurants!</p>
-        )}
-        {history.map(item => (
-          <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between',
-            padding: '10px 0', borderBottom: '1px solid #f3f4f6', fontSize: 13 }}>
-            <span style={{ color: '#374151', textTransform: 'capitalize' }}>{item.action.replace('_', ' ')}</span>
-            <span style={{ color: '#f57b46', fontWeight: 500 }}>+{item.points} pts</span>
-          </div>
+      {/* Tabs */}
+      <div style={{ display: 'flex', background: '#fff',
+        borderBottom: '0.5px solid #e5e7eb' }}>
+        {tabs.map(t => (
+          <button key={t.id} onClick={() => setActiveTab(t.id)}
+            style={{ flex: 1, padding: '12px 4px', background: 'none', border: 'none',
+              fontSize: 12, fontWeight: 600, cursor: 'pointer', ...font,
+              color: activeTab === t.id ? '#f57b46' : '#6b7280',
+              borderBottom: activeTab === t.id ? '2.5px solid #f57b46' : '2.5px solid transparent',
+              transition: 'all .15s' }}>
+            {t.label}
+          </button>
         ))}
       </div>
 
-      <div style={{ padding: '20px 16px 0' }}>
-        <button onClick={handleSignOut}
-          style={{ padding: '10px 20px', border: '1px solid #d1d5db', borderRadius: 8,
-            background: '#fff', fontSize: 13, cursor: 'pointer', color: '#6b7280' }}>
-          Sign out
-        </button>
-      </div>
+      {/* ── OVERVIEW TAB ───────────────────────────────────── */}
+      {activeTab === 'overview' && (
+        <div style={{ padding: '16px 16px 0' }}>
+
+          {/* Stats grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr',
+            gap: 10, marginBottom: 16 }}>
+            {[
+              { label: 'Votes cast',        value: totalVotes,   icon: '🗳️', color: '#e8f4fd', border: '#9ed4f6' },
+              { label: 'Restaurants added', value: totalAdded,   icon: '📍', color: '#e6f7f5', border: '#99ddd6' },
+              { label: 'Reviews written',   value: totalReviews, icon: '⭐', color: '#fefae8', border: '#fde9a0' },
+              { label: 'Favorites saved',   value: favorites.length, icon: '♥', color: '#fef0f8', border: '#f9b8e0' },
+              { label: 'Total points',      value: pts,          icon: '🏅', color: '#fff3ee', border: '#fdc9b0' },
+              { label: 'Current tier',      value: tier.name,    icon: tier.icon, color: '#f0fdf4', border: '#86efac' },
+            ].map(s => (
+              <div key={s.label} style={{ background: s.color, border: '0.5px solid ' + s.border,
+                borderRadius: 12, padding: '12px 10px', textAlign: 'center' }}>
+                <div style={{ fontSize: 20, marginBottom: 4 }}>{s.icon}</div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: '#111827' }}>{s.value}</div>
+                <div style={{ fontSize: 9, color: '#6b7280', fontWeight: 500, lineHeight: 1.3 }}>
+                  {s.label}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* How to earn more points */}
+          <div style={{ background: '#fff', border: '0.5px solid #e5e7eb',
+            borderRadius: 12, padding: '14px', marginBottom: 16 }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 10 }}>
+              Ways to earn points
+            </div>
+            {[
+              { action: 'Vote on an amenity',     pts: '+5 pts',  icon: '🗳️' },
+              { action: '5-vote streak bonus',    pts: '+20 pts', icon: '🔥' },
+              { action: 'Write a review',         pts: '+25 pts', icon: '⭐' },
+              { action: 'Add a photo',            pts: '+15 pts', icon: '📸' },
+              { action: 'Add a restaurant',       pts: '+50 pts', icon: '📍' },
+              { action: 'RSVP to a family event', pts: '+30 pts', icon: '🎉' },
+            ].map(e => (
+              <div key={e.action} style={{ display: 'flex', alignItems: 'center',
+                justifyContent: 'space-between', padding: '7px 0',
+                borderBottom: '0.5px solid #f3f4f6' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 14 }}>{e.icon}</span>
+                  <span style={{ fontSize: 12, color: '#374151' }}>{e.action}</span>
+                </div>
+                <span style={{ fontSize: 12, fontWeight: 700, color: '#f57b46' }}>{e.pts}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Sign out */}
+          <button onClick={() => { logout(); navigate('/') }}
+            style={{ width: '100%', padding: '11px 0', background: '#fff',
+              border: '1px solid #e5e7eb', borderRadius: 10, fontSize: 13,
+              fontWeight: 600, color: '#6b7280', cursor: 'pointer', ...font,
+              marginBottom: 16 }}>
+            Sign out
+          </button>
+        </div>
+      )}
+
+      {/* ── FAVORITES TAB ──────────────────────────────────── */}
+      {activeTab === 'favorites' && (
+        <div style={{ padding: '16px 16px 0' }}>
+          {favorites.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '40px 20px' }}>
+              <div style={{ fontSize: 48, marginBottom: 12 }}>♡</div>
+              <div style={{ fontSize: 15, fontWeight: 600, color: '#374151', marginBottom: 6 }}>
+                No favorites yet
+              </div>
+              <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 20 }}>
+                Tap the ♡ on any restaurant to save it here
+              </div>
+              <Link to="/" style={{ padding: '10px 24px', background: '#f57b46',
+                color: '#fff', borderRadius: 10, fontSize: 13, fontWeight: 600,
+                textDecoration: 'none' }}>
+                Explore restaurants
+              </Link>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {favorites.map(f => {
+                const r = f.restaurants
+                if (!r) return null
+                return (
+                  <div key={f.restaurant_id} style={{ background: '#fff',
+                    border: '0.5px solid #e5e7eb', borderRadius: 12,
+                    overflow: 'hidden', display: 'flex' }}>
+                    <Link to={'/restaurant/' + r.id}
+                      style={{ flex: 1, textDecoration: 'none', color: 'inherit',
+                        display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px' }}>
+                      <div style={{ width: 48, height: 48, borderRadius: 10,
+                        background: '#fff3ee', display: 'flex', alignItems: 'center',
+                        justifyContent: 'center', fontSize: 24, flexShrink: 0 }}>
+                        {r.emoji || '🍽️'}
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 14, fontWeight: 600, color: '#111827', marginBottom: 2 }}>
+                          {r.name}
+                        </div>
+                        <div style={{ fontSize: 11, color: '#6b7280' }}>{r.cuisine}</div>
+                        {r.city && (
+                          <div style={{ fontSize: 11, color: '#9ca3af' }}>
+                            📍 {r.city}, {r.state}
+                          </div>
+                        )}
+                      </div>
+                    </Link>
+                    <button onClick={() => removeFavorite(f.restaurant_id)}
+                      style={{ padding: '0 16px', background: 'none', border: 'none',
+                        cursor: 'pointer', fontSize: 20, color: '#f46ab8' }}>
+                      ♥
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── ACTIVITY TAB ───────────────────────────────────── */}
+      {activeTab === 'activity' && (
+        <div style={{ padding: '16px 16px 0' }}>
+          {history.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '40px 20px', color: '#9ca3af' }}>
+              <div style={{ fontSize: 40, marginBottom: 10 }}>🗳️</div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: '#374151', marginBottom: 6 }}>
+                No activity yet
+              </div>
+              <div style={{ fontSize: 12 }}>
+                Start voting on amenities to earn your first points!
+              </div>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+              {history.map(item => {
+                const meta = ACTION_LABELS[item.action] || { label: item.action, icon: '🏅', color: '#9ca3af' }
+                const date = new Date(item.created_at).toLocaleDateString('en-US',
+                  { month: 'short', day: 'numeric' })
+                return (
+                  <div key={item.id} style={{ display: 'flex', alignItems: 'center',
+                    gap: 12, padding: '10px 0',
+                    borderBottom: '0.5px solid #f3f4f6' }}>
+                    <div style={{ width: 36, height: 36, borderRadius: 10, flexShrink: 0,
+                      background: '#f9fafb', border: '0.5px solid #e5e7eb',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 16 }}>
+                      {meta.icon}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: '#374151' }}>
+                        {meta.label}
+                      </div>
+                      <div style={{ fontSize: 10, color: '#9ca3af' }}>{date}</div>
+                    </div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: '#f57b46' }}>
+                      +{item.points}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
