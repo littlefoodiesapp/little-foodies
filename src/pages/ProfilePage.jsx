@@ -55,20 +55,43 @@ export default function ProfilePage() {
   }, [user])
 
   async function loadAll() {
-    const [profRes, histRes, favRes] = await Promise.all([
-      supabase.from('profiles').select('*').eq('id', user.id).single(),
-      supabase.from('points_ledger').select('*').eq('user_id', user.id)
-        .order('created_at', { ascending: false }).limit(50),
-      supabase.from('favorites')
-        .select('restaurant_id, restaurants(id, name, emoji, cuisine, city, state, status)')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false }),
-    ])
-    setProfile(profRes.data)
-    setNameVal(profRes.data?.display_name || '')
-    setHistory(histRes.data || [])
-    setFavorites(favRes.data || [])
-    setLoading(false)
+    try {
+      const [profRes, histRes, favRes] = await Promise.all([
+        supabase.from('profiles').select('*').eq('id', user.id).single(),
+        supabase.from('points_ledger').select('*').eq('user_id', user.id)
+          .order('created_at', { ascending: false }).limit(50),
+        supabase.from('favorites')
+          .select('restaurant_id, restaurants(id, name, emoji, cuisine, city, state, status)')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false }),
+      ])
+
+      // If profile doesn't exist yet, create it
+      let profileData = profRes.data
+      if (!profileData) {
+        const meta = user.user_metadata || {}
+        const newProfile = {
+          id:           user.id,
+          display_name: meta.display_name || meta.first_name || user.email?.split('@')[0] || 'Parent',
+          first_name:   meta.first_name || null,
+          last_name:    meta.last_name  || null,
+          zip:          meta.zip        || null,
+          kids:         meta.kids       || null,
+          points:       0,
+        }
+        await supabase.from('profiles').upsert(newProfile)
+        profileData = newProfile
+      }
+
+      setProfile(profileData)
+      setNameVal(profileData?.display_name || '')
+      setHistory(histRes.data || [])
+      setFavorites(favRes.data || [])
+    } catch (err) {
+      console.error('Profile load error:', err)
+    } finally {
+      setLoading(false)
+    }
   }
 
   async function uploadAvatar(e) {
