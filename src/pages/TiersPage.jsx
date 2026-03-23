@@ -151,10 +151,10 @@ function ShareCard({ tier, stats, onClose }) {
       ctx.textAlign = 'center'
 
       const statLines = [
-        stats.restaurants > 0 ?  : null,
-        stats.votes > 0 ?  : null,
-        stats.reviews > 0 ?  : null,
-        ,
+        stats.restaurants > 0 ? `Added ${stats.restaurants} restaurant${stats.restaurants !== 1 ? 's' : ''}` : null,
+        stats.votes > 0 ? `Verified ${stats.votes} amenit${stats.votes !== 1 ? 'ies' : 'y'}` : null,
+        stats.reviews > 0 ? `Written ${stats.reviews} review${stats.reviews !== 1 ? 's' : ''}` : null,
+        `Earned ${stats.points} points`,
       ].filter(Boolean)
 
       statLines.forEach((line, i) => {
