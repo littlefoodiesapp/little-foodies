@@ -289,7 +289,7 @@ export default function RestaurantPage() {
       {/* Info */}
       <div style={{ padding: '16px 16px 14px', background: '#fff', borderBottom: '0.5px solid #f3f4f6' }}>
         <div style={{ fontSize: 22, fontWeight: 700, color: '#111827', marginBottom: 4,
-          fontFamily: "'IntroRust', cursive" }}>
+          fontFamily: "'IntroRust', 'Georgia', serif" }}>
           {restaurant.name}
         </div>
         <div style={{ fontSize: 13, color: '#6b7280', marginBottom: 6 }}>{restaurant.cuisine}</div>
