@@ -51,10 +51,15 @@ export default function ProfilePage() {
   const [activeTab, setActiveTab]   = useState('overview')
 
   useEffect(() => {
-    if (user) loadAll()
-  }, [user])
+    if (user) {
+      setLoading(true)
+      loadAll()
+    }
+  }, [user?.id])
 
   async function loadAll() {
+    // Safety timeout - never stay stuck loading more than 5 seconds
+    const timeout = setTimeout(() => setLoading(false), 5000)
     try {
       const [profRes, histRes, favRes] = await Promise.all([
         supabase.from('profiles').select('*').eq('id', user.id).single(),
@@ -90,6 +95,7 @@ export default function ProfilePage() {
     } catch (err) {
       console.error('Profile load error:', err)
     } finally {
+      clearTimeout(timeout)
       setLoading(false)
     }
   }
