@@ -11,6 +11,7 @@ import TiersPage           from './pages/TiersPage'
 import InvitePage          from './pages/InvitePage'
 import ResetPasswordPage   from './pages/ResetPasswordPage'
 import EventsPage          from './pages/EventsPage'
+import AdminPage           from './pages/AdminPage'
 
 const font = { fontFamily: "'Montserrat', sans-serif" }
 
@@ -37,7 +38,7 @@ export default function App() {
     </div>
   )
 
-  const hideNav = loc.pathname === '/login' || loc.pathname === '/reset-password'
+  const hideNav = ['/login', '/reset-password', '/admin'].some(p => loc.pathname.startsWith(p))
 
   return (
     <div style={{ position: 'relative', minHeight: '100vh' }}>
@@ -47,6 +48,7 @@ export default function App() {
           <Route path="/"                element={<ExplorePage />} />
           <Route path="/restaurant/:id"  element={<RestaurantPage />} />
           <Route path="/events"          element={<EventsPage />} />
+          <Route path="/admin"           element={user ? <AdminPage /> : <Navigate to="/login" />} />
           <Route path="/profile"         element={user ? <ProfilePage /> : <Navigate to="/login" />} />
           <Route path="/tiers"           element={user ? <TiersPage /> : <Navigate to="/login" />} />
           <Route path="/invite"          element={user ? <InvitePage /> : <Navigate to="/login" />} />

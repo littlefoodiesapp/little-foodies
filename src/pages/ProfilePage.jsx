@@ -371,6 +371,22 @@ export default function ProfilePage() {
             <span style={{ fontSize: 16, opacity: .8 }}>›</span>
           </Link>
 
+          {/* Admin panel - only show if admin */}
+          {profile?.is_admin && (
+            <Link to="/admin"
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                width: '100%', padding: '13px 16px', background: '#111827',
+                border: 'none', borderRadius: 12, fontSize: 13, fontWeight: 600,
+                color: '#fff', cursor: 'pointer', textDecoration: 'none',
+                marginBottom: 10, boxSizing: 'border-box' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ fontSize: 18 }}>⚙️</span>
+                <span>Admin panel</span>
+              </div>
+              <span style={{ opacity: .6, fontSize: 16 }}>›</span>
+            </Link>
+          )}
+
           {/* Edit profile */}
           <button onClick={() => setShowEditProfile(true)}
             style={{ width: '100%', padding: '13px 16px', background: '#fff',
