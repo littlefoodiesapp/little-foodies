@@ -9,22 +9,18 @@ import LoginPage           from './pages/LoginPage'
 import AddRestaurantPage   from './pages/AddRestaurantPage'
 import TiersPage           from './pages/TiersPage'
 import InvitePage          from './pages/InvitePage'
+import ResetPasswordPage   from './pages/ResetPasswordPage'
+import EventsPage          from './pages/EventsPage'
 
 const font = { fontFamily: "'Montserrat', sans-serif" }
 
-// Handles email confirmation tokens in the URL
 function AuthRedirectHandler() {
   const { setUser } = useAuth()
-
   useEffect(() => {
-    // Supabase puts tokens in the URL hash after email confirmation
     supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_IN' && session) {
-        setUser(session.user)
-      }
+      if (event === 'SIGNED_IN' && session) setUser(session.user)
     })
   }, [])
-
   return null
 }
 
@@ -41,20 +37,22 @@ export default function App() {
     </div>
   )
 
-  const hideNav = loc.pathname === '/login'
+  const hideNav = loc.pathname === '/login' || loc.pathname === '/reset-password'
 
   return (
     <div style={{ position: 'relative', minHeight: '100vh' }}>
       <AuthRedirectHandler />
       <div style={{ paddingBottom: hideNav ? 0 : 72 }}>
         <Routes>
-          <Route path="/"               element={<ExplorePage />} />
-          <Route path="/restaurant/:id" element={<RestaurantPage />} />
-          <Route path="/profile"        element={user ? <ProfilePage /> : <Navigate to="/login" />} />
-          <Route path="/tiers"          element={user ? <TiersPage /> : <Navigate to="/login" />} />
-          <Route path="/invite"         element={user ? <InvitePage /> : <Navigate to="/login" />} />
-          <Route path="/add"            element={user ? <AddRestaurantPage /> : <Navigate to="/login" />} />
-          <Route path="/login"          element={!user ? <LoginPage /> : <Navigate to="/" />} />
+          <Route path="/"                element={<ExplorePage />} />
+          <Route path="/restaurant/:id"  element={<RestaurantPage />} />
+          <Route path="/events"          element={<EventsPage />} />
+          <Route path="/profile"         element={user ? <ProfilePage /> : <Navigate to="/login" />} />
+          <Route path="/tiers"           element={user ? <TiersPage /> : <Navigate to="/login" />} />
+          <Route path="/invite"          element={user ? <InvitePage /> : <Navigate to="/login" />} />
+          <Route path="/add"             element={user ? <AddRestaurantPage /> : <Navigate to="/login" />} />
+          <Route path="/login"           element={!user ? <LoginPage /> : <Navigate to="/" />} />
+          <Route path="/reset-password"  element={<ResetPasswordPage />} />
         </Routes>
       </div>
 
@@ -74,6 +72,14 @@ export default function App() {
               fontSize: 10, fontWeight: 600, ...font
             }}>
               <span style={{ fontSize: 20 }}>🔍</span>Explore
+            </Link>
+            <Link to="/events" style={{
+              flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',
+              gap: 2, textDecoration: 'none', paddingBottom: 4,
+              color: loc.pathname === '/events' ? '#f57b46' : '#9ca3af',
+              fontSize: 10, fontWeight: 600, ...font
+            }}>
+              <span style={{ fontSize: 20 }}>🎉</span>Events
             </Link>
             <Link to="/add" style={{
               flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',
