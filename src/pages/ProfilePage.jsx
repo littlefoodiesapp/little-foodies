@@ -298,6 +298,26 @@ export default function ProfilePage() {
             ))}
           </div>
 
+          {/* Invite friends */}
+          <Link to="/invite"
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              width: '100%', padding: '13px 16px', background: 'linear-gradient(135deg, #00a994 0%, #0692e5 100%)',
+              border: 'none', borderRadius: 12, fontSize: 13, fontWeight: 600,
+              color: '#fff', cursor: 'pointer', textDecoration: 'none',
+              marginBottom: 10, boxSizing: 'border-box',
+              boxShadow: '0 4px 14px rgba(0,169,148,.3)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ fontSize: 20 }}>👨‍👩‍👧‍👦</span>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600 }}>Invite friends</div>
+                <div style={{ fontSize: 10, opacity: .85, fontWeight: 400 }}>
+                  Earn 50 pts for every friend who joins!
+                </div>
+              </div>
+            </div>
+            <span style={{ fontSize: 16, opacity: .8 }}>›</span>
+          </Link>
+
           {/* Sign out */}
           <button onClick={() => { logout(); navigate('/') }}
             style={{ width: '100%', padding: '11px 0', background: '#fff',

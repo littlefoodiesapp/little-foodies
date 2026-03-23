@@ -6,6 +6,7 @@ import ProfilePage         from './pages/ProfilePage'
 import LoginPage           from './pages/LoginPage'
 import AddRestaurantPage   from './pages/AddRestaurantPage'
 import TiersPage           from './pages/TiersPage'
+import InvitePage          from './pages/InvitePage'
 
 const font = { fontFamily: "'Montserrat', sans-serif" }
 
@@ -32,6 +33,7 @@ export default function App() {
           <Route path="/restaurant/:id" element={<RestaurantPage />} />
           <Route path="/profile"        element={user ? <ProfilePage /> : <Navigate to="/login" />} />
           <Route path="/tiers"          element={user ? <TiersPage /> : <Navigate to="/login" />} />
+          <Route path="/invite"         element={user ? <InvitePage /> : <Navigate to="/login" />} />
           <Route path="/add"            element={user ? <AddRestaurantPage /> : <Navigate to="/login" />} />
           <Route path="/login"          element={!user ? <LoginPage /> : <Navigate to="/" />} />
         </Routes>
