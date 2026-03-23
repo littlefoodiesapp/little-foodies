@@ -52,7 +52,7 @@ export default function AddRestaurantPage() {
 
   const [form, setForm] = useState({
     name: '', cuisine: '', address: '', city: '', state: 'NJ',
-    zip: '', phone: '', website: '', hours: '', emoji: '🍽️'
+    zip: '', phone: '', website: '', hours: '', emoji: '🍽️', opentable_url: ''
   })
 
   const [amenitySelections, setAmenitySelections] = useState({
@@ -144,7 +144,8 @@ export default function AddRestaurantPage() {
           name: form.name, cuisine: form.cuisine, address: form.address,
           city: form.city, state: form.state, zip: form.zip,
           phone: form.phone, website: form.website, hours: form.hours,
-          emoji: form.emoji, status: 'pending', submitted_by: currentUser?.id,
+          emoji: form.emoji, opentable_url: form.opentable_url || null,
+          status: 'pending', submitted_by: currentUser?.id,
         })
         .select().single()
 

@@ -323,6 +323,33 @@ export default function RestaurantPage() {
         {restaurant.phone && (
           <div style={{ fontSize: 13, color: '#f57b46', marginTop: 6 }}>📞 {restaurant.phone}</div>
         )}
+
+        {/* OpenTable reservation button */}
+        {(() => {
+          const otUrl = restaurant.opentable_url ||
+            `https://www.opentable.com/s/?term=${encodeURIComponent(
+              (restaurant.name || '') + ' ' + (restaurant.city || '') + ' ' + (restaurant.state || '')
+            )}`
+          return (
+            <a href={otUrl} target="_blank" rel="noopener noreferrer"
+              style={{ display: 'flex', alignItems: 'center', gap: 10,
+                marginTop: 12, padding: '11px 14px',
+                background: '#DA3743', borderRadius: 10, textDecoration: 'none',
+                boxShadow: '0 2px 8px rgba(218,55,67,.25)' }}>
+              <span style={{ fontSize: 18 }}>📅</span>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: '#fff' }}>
+                  Make a reservation
+                </div>
+                <div style={{ fontSize: 10, color: 'rgba(255,255,255,.8)' }}>
+                  via OpenTable
+                </div>
+              </div>
+              <span style={{ marginLeft: 'auto', color: 'rgba(255,255,255,.7)',
+                fontSize: 16 }}>›</span>
+            </a>
+          )
+        })()}
       </div>
 
       {/* Amenity summary strip */}
