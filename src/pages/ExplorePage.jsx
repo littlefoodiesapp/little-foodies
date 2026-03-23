@@ -18,10 +18,66 @@ const FILTERS = [
 const BG = ['#fff3ee','#fefae8','#e6f7f5','#fef0f8','#e8f4fd','#f0fdf4']
 const font = { fontFamily: "'Montserrat', sans-serif" }
 
+// NJ zip code coordinates for radius search
+const ZIP_COORDS = {
+  '07001': [40.576, -74.264], '07002': [40.666, -74.107], '07003': [40.808, -74.188],
+  '07004': [40.877, -74.299], '07005': [40.918, -74.329], '07006': [40.857, -74.285],
+  '07007': [40.820, -74.205], '07008': [40.577, -74.228], '07009': [40.851, -74.222],
+  '07010': [40.827, -74.003], '07011': [40.899, -74.139], '07012': [40.864, -74.215],
+  '07013': [40.857, -74.182], '07014': [40.840, -74.147], '07015': [40.886, -74.106],
+  '07016': [40.657, -74.301], '07017': [40.763, -74.218], '07018': [40.739, -74.218],
+  '07019': [40.763, -74.218], '07020': [40.827, -73.975], '07021': [40.828, -74.275],
+  '07022': [40.823, -74.006], '07023': [40.642, -74.352], '07024': [40.853, -73.993],
+  '07025': [40.953, -74.128], '07026': [40.930, -74.102], '07027': [40.650, -74.325],
+  '07028': [40.796, -74.203], '07029': [40.744, -74.154], '07030': [40.744, -74.031],
+  '07031': [40.792, -74.127], '07032': [40.744, -74.127], '07033': [40.658, -74.281],
+  '07034': [40.878, -74.329], '07035': [40.946, -74.279], '07036': [40.617, -74.243],
+  '07039': [40.777, -74.327], '07040': [40.727, -74.264], '07041': [40.726, -74.302],
+  '07042': [40.795, -74.206], '07043': [40.843, -74.223], '07044': [40.831, -74.248],
+  '07045': [40.908, -74.357], '07046': [40.947, -74.368], '07047': [40.793, -74.015],
+  '07050': [40.769, -74.237], '07052': [40.793, -74.246], '07054': [40.845, -74.401],
+  '07055': [40.856, -74.128], '07057': [40.855, -74.109], '07058': [40.866, -74.338],
+  '07059': [40.622, -74.442], '07060': [40.620, -74.421], '07061': [40.620, -74.421],
+  '07062': [40.596, -74.388], '07063': [40.591, -74.431], '07064': [40.550, -74.245],
+  '07065': [40.570, -74.286], '07066': [40.627, -74.314], '07067': [40.580, -74.310],
+  '07068': [40.817, -74.297], '07069': [40.638, -74.430], '07070': [40.858, -74.099],
+  '07071': [40.833, -74.115], '07072': [40.815, -74.060], '07073': [40.818, -74.086],
+  '07074': [40.837, -74.051], '07075': [40.842, -74.073], '07076': [40.641, -74.357],
+  '07077': [40.544, -74.259], '07078': [40.739, -74.325], '07079': [40.745, -74.257],
+  '07080': [40.573, -74.411], '07081': [40.700, -74.327], '07082': [40.898, -74.340],
+  '07083': [40.698, -74.268], '07086': [40.768, -74.018], '07087': [40.756, -74.034],
+  '07088': [40.706, -74.280], '07090': [40.657, -74.349], '07091': [40.657, -74.349],
+  '07092': [40.677, -74.338], '07093': [40.787, -74.010], '07094': [40.786, -74.030],
+  '07095': [40.556, -74.281], '07096': [40.786, -74.030], '07097': [40.786, -74.030],
+  '07099': [40.744, -74.127], '07101': [40.735, -74.172], '07102': [40.735, -74.172],
+  '07103': [40.730, -74.185], '07104': [40.762, -74.165], '07105': [40.716, -74.143],
+  '07106': [40.738, -74.207], '07107': [40.756, -74.183], '07108': [40.722, -74.196],
+  '07109': [40.793, -74.152], '07110': [40.808, -74.157], '07111': [40.722, -74.233],
+  '07112': [40.714, -74.218], '07114': [40.699, -74.169], '07201': [40.663, -74.213],
+  '07202': [40.649, -74.220], '07203': [40.635, -74.241], '07204': [40.650, -74.252],
+  '07205': [40.670, -74.235], '07206': [40.660, -74.196], '07207': [40.663, -74.213],
+  '07208': [40.671, -74.254], '07302': [40.719, -74.048], '07303': [40.719, -74.048],
+  '07304': [40.714, -74.073], '07305': [40.695, -74.090], '07306': [40.733, -74.063],
+  '07307': [40.752, -74.053], '07310': [40.733, -74.046], '07311': [40.717, -74.033],
+}
+
+// Haversine distance in miles
+function distanceMiles(lat1, lon1, lat2, lon2) {
+  const R = 3958.8
+  const dLat = (lat2 - lat1) * Math.PI / 180
+  const dLon = (lon2 - lon1) * Math.PI / 180
+  const a = Math.sin(dLat/2)**2 +
+    Math.cos(lat1 * Math.PI/180) * Math.cos(lat2 * Math.PI/180) * Math.sin(dLon/2)**2
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
+}
+
+function isZipCode(str) {
+  return /^\d{5}$/.test(str.trim())
+}
+
 function InstagramIcon() {
   return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
-      xmlns="http://www.w3.org/2000/svg">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
       <rect x="2" y="2" width="20" height="20" rx="5" stroke="currentColor" strokeWidth="2"/>
       <circle cx="12" cy="12" r="4" stroke="currentColor" strokeWidth="2"/>
       <circle cx="17.5" cy="6.5" r="1.2" fill="currentColor"/>
@@ -37,6 +93,7 @@ export default function ExplorePage() {
   const [loading, setLoading]         = useState(true)
   const [search, setSearch]           = useState('')
   const [hasSearched, setHasSearched] = useState(false)
+  const [radius, setRadius]           = useState(5)
 
   useEffect(() => {
     getRestaurants().then(({ data }) => {
@@ -47,8 +104,14 @@ export default function ExplorePage() {
 
   function handleSearchChange(val) {
     setSearch(val)
-    if (val.trim().length > 0) setHasSearched(true)
-    else setHasSearched(false)
+    setHasSearched(val.trim().length > 0)
+  }
+
+  function handleQuickSearch(val) {
+    // Strip ", NJ" or ", NY" from city pills so it matches the city field
+    const cleaned = val.replace(/,\s*(NJ|NY|CT|PA)$/i, '').trim()
+    setSearch(cleaned)
+    setHasSearched(true)
   }
 
   function clearSearch() {
@@ -78,15 +141,30 @@ export default function ExplorePage() {
   }
 
   const term = search.trim().toLowerCase()
+  const isZip = isZipCode(term)
+  const searchCoords = isZip ? ZIP_COORDS[term] : null
 
   const visible = restaurants
     .filter(r => {
       if (!term) return false
+
+      // Zip radius search
+      if (isZip && searchCoords) {
+        const rCoords = ZIP_COORDS[r.zip]
+        if (rCoords) {
+          const dist = distanceMiles(searchCoords[0], searchCoords[1], rCoords[0], rCoords[1])
+          return dist <= radius
+        }
+        // Fallback: match zip directly if no coords
+        return (r.zip || '').includes(term)
+      }
+
+      // City / name / cuisine text search
       return (
-        (r.zip     || '').toLowerCase().includes(term) ||
         (r.city    || '').toLowerCase().includes(term) ||
         (r.name    || '').toLowerCase().includes(term) ||
-        (r.cuisine || '').toLowerCase().includes(term)
+        (r.cuisine || '').toLowerCase().includes(term) ||
+        (r.zip     || '').toLowerCase().includes(term)
       )
     })
     .filter(r => {
@@ -101,11 +179,9 @@ export default function ExplorePage() {
   return (
     <div style={{ ...font, background: '#f9fafb', minHeight: '100vh', paddingBottom: 80 }}>
 
-      {/* ── HERO / LANDING ─────────────────────────────────── */}
+      {/* ── HOME / LANDING ─────────────────────────────────── */}
       {!hasSearched && (
-        <div style={{ background: '#fff', paddingBottom: 0 }}>
-
-          {/* Logo area */}
+        <div style={{ background: '#fff' }}>
           <div style={{ padding: '48px 24px 20px', textAlign: 'center' }}>
             <img src={LOGO} alt="Little Foodies"
               style={{ height: 80, width: 'auto', marginBottom: 16 }} />
@@ -115,32 +191,24 @@ export default function ExplorePage() {
             </p>
           </div>
 
-          {/* Search bar — hero size */}
           <div style={{ padding: '0 20px 24px' }}>
             <div style={{ position: 'relative' }}>
               <span style={{ position: 'absolute', left: 14, top: '50%',
-                transform: 'translateY(-50%)', fontSize: 18, pointerEvents: 'none' }}>
-                🔍
-              </span>
+                transform: 'translateY(-50%)', fontSize: 18, pointerEvents: 'none' }}>🔍</span>
               <input
                 type="text"
                 value={search}
                 onChange={e => handleSearchChange(e.target.value)}
                 placeholder="Search by zip code, city, or restaurant..."
-                style={{
-                  width: '100%', padding: '14px 44px 14px 44px',
-                  border: '2px solid #f57b46',
-                  borderRadius: 14, fontSize: 14, outline: 'none',
-                  background: '#fff', boxSizing: 'border-box', ...font,
-                  boxShadow: '0 4px 20px rgba(245,123,70,.15)'
-                }}
+                style={{ width: '100%', padding: '14px 44px', border: '2px solid #f57b46',
+                  borderRadius: 14, fontSize: 14, outline: 'none', background: '#fff',
+                  boxSizing: 'border-box', ...font,
+                  boxShadow: '0 4px 20px rgba(245,123,70,.15)' }}
               />
             </div>
-
-            {/* Quick search pills */}
             <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
-              {['Union, NJ', 'Clark, NJ', 'Cranford, NJ', '07083', '07066'].map(q => (
-                <button key={q} onClick={() => handleSearchChange(q)}
+              {['Union', 'Clark', 'Cranford', '07083', '07066', '07016'].map(q => (
+                <button key={q} onClick={() => handleQuickSearch(q)}
                   style={{ padding: '6px 13px', background: '#fff',
                     border: '1px solid #e5e7eb', borderRadius: 20,
                     fontSize: 12, fontWeight: 500, color: '#6b7280',
@@ -151,8 +219,7 @@ export default function ExplorePage() {
             </div>
           </div>
 
-          {/* Feature highlights */}
-          <div style={{ padding: '0 20px 0', display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ padding: '0 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
             {[
               { icon: '✓', color: '#00a994', bg: '#e6f7f5', border: '#99ddd6',
                 title: 'Community verified',
@@ -165,40 +232,31 @@ export default function ExplorePage() {
                 desc: 'Find family nights, cooking classes and kids events near you' },
             ].map(f => (
               <div key={f.title} style={{ display: 'flex', gap: 12, alignItems: 'flex-start',
-                padding: '12px 14px', background: f.bg,
-                border: '0.5px solid ' + f.border, borderRadius: 12 }}>
+                padding: '12px 14px', background: f.bg, border: '0.5px solid ' + f.border,
+                borderRadius: 12 }}>
                 <div style={{ width: 36, height: 36, borderRadius: 10, background: '#fff',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   fontSize: 16, flexShrink: 0, color: f.color, fontWeight: 700 }}>
                   {f.icon}
                 </div>
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: '#111827', marginBottom: 2 }}>
-                    {f.title}
-                  </div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: '#111827', marginBottom: 2 }}>{f.title}</div>
                   <div style={{ fontSize: 11, color: '#6b7280', lineHeight: 1.5 }}>{f.desc}</div>
                 </div>
               </div>
             ))}
           </div>
 
-          {/* Instagram footer */}
           <div style={{ padding: '28px 20px 20px', textAlign: 'center',
             borderTop: '0.5px solid #f3f4f6', marginTop: 24 }}>
             <a href="https://www.instagram.com/littlefoodiesapp/"
               target="_blank" rel="noopener noreferrer"
               style={{ display: 'inline-flex', alignItems: 'center', gap: 8,
-                textDecoration: 'none', color: '#6b7280',
-                padding: '10px 20px', borderRadius: 20,
-                border: '1px solid #e5e7eb', background: '#fff',
-                fontSize: 13, fontWeight: 600, ...font,
-                transition: 'all .15s' }}>
-              <span style={{ background: 'linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888)',
-                WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-                display: 'flex', alignItems: 'center' }}>
-                <InstagramIcon />
-              </span>
-              <span>Follow us @littlefoodiesapp</span>
+                textDecoration: 'none', color: '#6b7280', padding: '10px 20px',
+                borderRadius: 20, border: '1px solid #e5e7eb', background: '#fff',
+                fontSize: 13, fontWeight: 600, ...font }}>
+              <span style={{ color: '#e1306c' }}><InstagramIcon /></span>
+              Follow us @littlefoodiesapp
             </a>
             <p style={{ fontSize: 10, color: '#d1d5db', marginTop: 12 }}>
               Little Foodies · Union, Clark & Cranford, NJ
@@ -210,7 +268,7 @@ export default function ExplorePage() {
       {/* ── SEARCH RESULTS ─────────────────────────────────── */}
       {hasSearched && (
         <>
-          {/* Compact header when searching */}
+          {/* Sticky compact header */}
           <div style={{ background: '#fff', padding: '12px 16px',
             borderBottom: '0.5px solid #e5e7eb', position: 'sticky', top: 0, zIndex: 10 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
@@ -222,12 +280,9 @@ export default function ExplorePage() {
                 ← Home
               </button>
             </div>
-            {/* Search bar compact */}
             <div style={{ position: 'relative' }}>
               <span style={{ position: 'absolute', left: 11, top: '50%',
-                transform: 'translateY(-50%)', fontSize: 14, pointerEvents: 'none' }}>
-                🔍
-              </span>
+                transform: 'translateY(-50%)', fontSize: 14, pointerEvents: 'none' }}>🔍</span>
               <input
                 type="text"
                 value={search}
@@ -248,6 +303,34 @@ export default function ExplorePage() {
                 </button>
               )}
             </div>
+
+            {/* Radius selector — only show for zip searches */}
+            {isZip && searchCoords && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
+                <span style={{ fontSize: 11, color: '#6b7280', fontWeight: 500 }}>Radius:</span>
+                {[2, 5, 10, 15, 25].map(r => (
+                  <button key={r} onClick={() => setRadius(r)}
+                    style={{ padding: '4px 10px', borderRadius: 20, fontSize: 11,
+                      fontWeight: 600, cursor: 'pointer', border: 'none',
+                      background: radius === r ? '#f57b46' : '#f3f4f6',
+                      color: radius === r ? '#fff' : '#6b7280', ...font }}>
+                    {r} mi
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Zip context label */}
+            {isZip && searchCoords && (
+              <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 6 }}>
+                📍 Showing restaurants within {radius} miles of {term}
+              </div>
+            )}
+            {isZip && !searchCoords && (
+              <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 6 }}>
+                📍 Zip code not in our database yet — showing exact matches
+              </div>
+            )}
           </div>
 
           {/* Points banner */}
@@ -278,8 +361,11 @@ export default function ExplorePage() {
 
           {/* Count */}
           <div style={{ fontSize: 11, fontWeight: 600, color: '#9ca3af',
-            padding: '0 16px', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '.06em' }}>
-            {loading ? 'Loading...' : visible.length + ' restaurant' + (visible.length !== 1 ? 's' : '') + ' found'}
+            padding: '0 16px', marginBottom: 10, textTransform: 'uppercase',
+            letterSpacing: '.06em' }}>
+            {loading ? 'Loading...'
+              : visible.length + ' restaurant' + (visible.length !== 1 ? 's' : '') + ' found'
+              + (isZip && searchCoords ? ' within ' + radius + ' miles' : '')}
           </div>
 
           {/* No results */}
@@ -288,11 +374,15 @@ export default function ExplorePage() {
               borderRadius: 14, padding: '32px 20px', textAlign: 'center' }}>
               <div style={{ fontSize: 48, marginBottom: 12 }}>🗺️</div>
               <div style={{ fontSize: 15, fontWeight: 600, color: '#111827', marginBottom: 6 }}>
-                No restaurants found for "{search}"
+                No restaurants found{isZip ? ' within ' + radius + ' miles of ' + term : ' for "' + search + '"'}
               </div>
+              {isZip && (
+                <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 12 }}>
+                  Try increasing the radius above ↑
+                </div>
+              )}
               <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 20, lineHeight: 1.6 }}>
-                We don't have any family-friendly restaurants listed there yet.
-                Be the first to add one and earn <strong>50 points!</strong>
+                Be the first to add a family-friendly restaurant here and earn <strong>50 points!</strong>
               </div>
               <Link to="/add" style={{ display: 'inline-block', padding: '11px 24px',
                 background: '#f57b46', color: '#fff', borderRadius: 10,
@@ -316,6 +406,13 @@ export default function ExplorePage() {
               {visible.map((r, i) => {
                 const verifiedAms = (r.amenities || []).filter(a => a.is_verified).slice(0, 3)
                 const isPending   = r.status === 'pending'
+                // Calculate distance if zip search
+                let distLabel = null
+                if (isZip && searchCoords && r.zip && ZIP_COORDS[r.zip]) {
+                  const d = distanceMiles(searchCoords[0], searchCoords[1],
+                    ZIP_COORDS[r.zip][0], ZIP_COORDS[r.zip][1])
+                  distLabel = d.toFixed(1) + ' mi away'
+                }
                 return (
                   <Link key={r.id} to={'/restaurant/' + r.id}
                     style={{ textDecoration: 'none', color: 'inherit' }}>
@@ -337,7 +434,7 @@ export default function ExplorePage() {
                             {favIds.has(r.id) ? '♥' : '♡'}
                           </button>
                         </div>
-                        <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 8 }}>{r.cuisine}</div>
+                        <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 6 }}>{r.cuisine}</div>
                         <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 8 }}>
                           {isPending ? (
                             <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 20,
@@ -357,6 +454,13 @@ export default function ExplorePage() {
                               ))}
                             </>
                           )}
+                          {distLabel && (
+                            <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 20,
+                              fontWeight: 600, background: '#f0fdf4', color: '#166534',
+                              border: '0.5px solid #86efac' }}>
+                              📍 {distLabel}
+                            </span>
+                          )}
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center',
                           justifyContent: 'space-between', paddingTop: 8,
@@ -372,7 +476,6 @@ export default function ExplorePage() {
             </div>
           )}
 
-          {/* Instagram footer in search results too */}
           <div style={{ padding: '24px 20px 8px', textAlign: 'center' }}>
             <a href="https://www.instagram.com/littlefoodiesapp/"
               target="_blank" rel="noopener noreferrer"
