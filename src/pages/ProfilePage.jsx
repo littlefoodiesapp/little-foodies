@@ -49,6 +49,8 @@ export default function ProfilePage() {
   const [nameVal, setNameVal]       = useState('')
   const [loading, setLoading]       = useState(true)
   const [activeTab, setActiveTab]   = useState('overview')
+  const [showEditProfile, setShowEditProfile] = useState(false)
+  const [editForm, setEditForm]     = useState({})
 
   useEffect(() => {
     if (user) {
@@ -121,6 +123,20 @@ export default function ProfilePage() {
     await supabase.from('profiles').update({ display_name: nameVal.trim() }).eq('id', user.id)
     setProfile(prev => ({ ...prev, display_name: nameVal.trim() }))
     setEditName(false)
+  }
+
+  async function saveProfile() {
+    const updates = {
+      display_name: (editForm.firstName + ' ' + editForm.lastName).trim(),
+      first_name:   editForm.firstName,
+      last_name:    editForm.lastName,
+      zip:          editForm.zip,
+      kids:         editForm.kids,
+    }
+    await supabase.from('profiles').update(updates).eq('id', user.id)
+    setProfile(prev => ({ ...prev, ...updates }))
+    setNameVal(updates.display_name)
+    setShowEditProfile(false)
   }
 
   async function removeFavorite(restaurantId) {
@@ -216,8 +232,16 @@ export default function ProfilePage() {
               </div>
             )}
             {joinDate && (
-              <div style={{ fontSize: 11, color: 'rgba(255,255,255,.8)', marginBottom: 6 }}>
+              <div style={{ fontSize: 11, color: 'rgba(255,255,255,.8)', marginBottom: 2 }}>
                 Joined {joinDate}
+              </div>
+            )}
+            {profile?.kids && (
+              <div style={{ fontSize: 11, color: 'rgba(255,255,255,.8)', marginBottom: 6 }}>
+                {profile.kids === 'expecting' ? '🤰 Expecting' :
+                 profile.kids === '1' ? '👶 1 child' :
+                 profile.kids === '4+' ? '👨‍👩‍👧‍👦 4+ children' :
+                 `👨‍👩‍👧‍👦 ${profile.kids} children`}
               </div>
             )}
             {/* Tier badge — clickable */}
@@ -347,6 +371,20 @@ export default function ProfilePage() {
             <span style={{ fontSize: 16, opacity: .8 }}>›</span>
           </Link>
 
+          {/* Edit profile */}
+          <button onClick={() => setShowEditProfile(true)}
+            style={{ width: '100%', padding: '13px 16px', background: '#fff',
+              border: '1px solid #e5e7eb', borderRadius: 12, fontSize: 13,
+              fontWeight: 600, color: '#374151', cursor: 'pointer', ...font,
+              marginBottom: 10, display: 'flex', alignItems: 'center',
+              justifyContent: 'space-between', boxSizing: 'border-box' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ fontSize: 18 }}>✏️</span>
+              <span>Edit profile</span>
+            </div>
+            <span style={{ color: '#9ca3af', fontSize: 16 }}>›</span>
+          </button>
+
           {/* Sign out */}
           <button onClick={() => { logout(); navigate('/') }}
             style={{ width: '100%', padding: '11px 0', background: '#fff',
@@ -461,6 +499,122 @@ export default function ProfilePage() {
               })}
             </div>
           )}
+        </div>
+      )}
+      {/* Edit Profile Modal */}
+      {showEditProfile && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
+          zIndex: 9999, display: 'flex', alignItems: 'flex-end' }}>
+          <div style={{ background: '#fff', width: '100%', borderRadius: '20px 20px 0 0',
+            padding: '24px 20px 40px', ...font }}>
+
+            <div style={{ display: 'flex', alignItems: 'center',
+              justifyContent: 'space-between', marginBottom: 20 }}>
+              <div style={{ fontSize: 16, fontWeight: 700, color: '#111827' }}>
+                Edit profile
+              </div>
+              <button onClick={() => setShowEditProfile(false)}
+                style={{ background: '#f3f4f6', border: 'none', borderRadius: '50%',
+                  width: 32, height: 32, fontSize: 16, cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                ✕
+              </button>
+            </div>
+
+            {/* First + Last name */}
+            <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: '#374151',
+                  textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 4 }}>
+                  First name
+                </div>
+                <input
+                  defaultValue={profile?.first_name || profile?.display_name?.split(' ')[0] || ''}
+                  onChange={e => setEditForm(prev => ({ ...prev, firstName: e.target.value }))}
+                  style={{ width: '100%', padding: '11px 13px', border: '1.5px solid #e5e7eb',
+                    borderRadius: 10, fontSize: 16, boxSizing: 'border-box',
+                    outline: 'none', ...font, background: '#fafafa' }}
+                  placeholder="First name"
+                />
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: '#374151',
+                  textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 4 }}>
+                  Last name
+                </div>
+                <input
+                  defaultValue={profile?.last_name || profile?.display_name?.split(' ')[1] || ''}
+                  onChange={e => setEditForm(prev => ({ ...prev, lastName: e.target.value }))}
+                  style={{ width: '100%', padding: '11px 13px', border: '1.5px solid #e5e7eb',
+                    borderRadius: 10, fontSize: 16, boxSizing: 'border-box',
+                    outline: 'none', ...font, background: '#fafafa' }}
+                  placeholder="Last name"
+                />
+              </div>
+            </div>
+
+            {/* Zip code */}
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: '#374151',
+                textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 4 }}>
+                Zip code
+              </div>
+              <input
+                defaultValue={profile?.zip || ''}
+                onChange={e => setEditForm(prev => ({ ...prev, zip: e.target.value }))}
+                style={{ width: '100%', padding: '11px 13px', border: '1.5px solid #e5e7eb',
+                  borderRadius: 10, fontSize: 16, boxSizing: 'border-box',
+                  outline: 'none', ...font, background: '#fafafa' }}
+                placeholder="07083" inputMode="numeric" maxLength={5}
+              />
+            </div>
+
+            {/* Number of kids */}
+            <div style={{ marginBottom: 24 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: '#374151',
+                textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 4 }}>
+                Number of kids
+              </div>
+              <select
+                defaultValue={profile?.kids || ''}
+                onChange={e => setEditForm(prev => ({ ...prev, kids: e.target.value }))}
+                style={{ width: '100%', padding: '11px 13px', border: '1.5px solid #e5e7eb',
+                  borderRadius: 10, fontSize: 16, boxSizing: 'border-box',
+                  outline: 'none', ...font, background: '#fafafa',
+                  appearance: 'none', cursor: 'pointer' }}>
+                <option value="">Select...</option>
+                <option value="expecting">🤰 Expecting</option>
+                <option value="1">1 child</option>
+                <option value="2">2 children</option>
+                <option value="3">3 children</option>
+                <option value="4+">4+ children</option>
+              </select>
+            </div>
+
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={() => setShowEditProfile(false)}
+                style={{ flex: 1, padding: '13px 0', background: '#fff',
+                  border: '1.5px solid #e5e7eb', borderRadius: 12, fontSize: 14,
+                  fontWeight: 600, color: '#6b7280', cursor: 'pointer', ...font }}>
+                Cancel
+              </button>
+              <button onClick={() => {
+                  setEditForm(prev => ({
+                    firstName: prev.firstName ?? profile?.first_name ?? profile?.display_name?.split(' ')[0] ?? '',
+                    lastName:  prev.lastName  ?? profile?.last_name  ?? profile?.display_name?.split(' ')[1] ?? '',
+                    zip:       prev.zip       ?? profile?.zip        ?? '',
+                    kids:      prev.kids      ?? profile?.kids       ?? '',
+                  }))
+                  saveProfile()
+                }}
+                style={{ flex: 2, padding: '13px 0', background: '#f57b46',
+                  border: 'none', borderRadius: 12, fontSize: 14,
+                  fontWeight: 600, color: '#fff', cursor: 'pointer', ...font,
+                  boxShadow: '0 4px 14px rgba(245,123,70,.3)' }}>
+                Save changes
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
