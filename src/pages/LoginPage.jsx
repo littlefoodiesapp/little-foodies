@@ -31,10 +31,11 @@ const KIDS_OPTIONS = [
 export default function LoginPage() {
   const navigate = useNavigate()
   const { setUser } = useAuth()
-  const [mode, setMode] = useState('signup') // 'signup' | 'login'
+  const [mode, setMode] = useState('signup') // 'signup' | 'login' | 'forgot'
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(false)
+  const [resetSent, setResetSent] = useState(false)
 
   const [form, setForm] = useState({
     firstName: '', lastName: '', zip: '', kids: '',
@@ -137,6 +138,19 @@ export default function LoginPage() {
     await supabase.auth.resend({ type: 'signup', email: form.email.trim() })
     setError(null)
     setSuccess(true)
+    setLoading(false)
+  }
+
+  async function handleForgotPassword() {
+    if (!form.email.trim()) { setError('Please enter your email address above'); return }
+    setLoading(true)
+    setError(null)
+    const { error: resetErr } = await supabase.auth.resetPasswordForEmail(
+      form.email.trim(),
+      { redirectTo: 'https://little-foodies.pages.dev/login' }
+    )
+    if (resetErr) { setError(resetErr.message); setLoading(false); return }
+    setResetSent(true)
     setLoading(false)
   }
 
@@ -321,13 +335,22 @@ export default function LoginPage() {
                 placeholder="heidi@email.com" autoComplete="email" />
             </div>
 
-            <div style={{ marginBottom: 20 }}>
+            <div style={{ marginBottom: 6 }}>
               <label style={lbl}>Password</label>
               <input style={inp} type="password" value={form.password}
                 onChange={e => update('password', e.target.value)}
                 onFocus={focusStyle} onBlur={blurStyle}
                 placeholder="Your password" autoComplete="current-password"
                 onKeyDown={e => e.key === 'Enter' && handleLogin()} />
+            </div>
+
+            <div style={{ textAlign: 'right', marginBottom: 16 }}>
+              <button onClick={() => { setMode('forgot'); setError(null) }}
+                style={{ background: 'none', border: 'none', color: '#f57b46',
+                  fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                  fontFamily: "'Montserrat', sans-serif" }}>
+                Forgot password?
+              </button>
             </div>
 
             {error && (
@@ -364,6 +387,73 @@ export default function LoginPage() {
                 Sign up free
               </button>
             </div>
+          </>
+        )}
+
+        {/* ── FORGOT PASSWORD ──────────────────────── */}
+        {mode === 'forgot' && (
+          <>
+            {resetSent ? (
+              <div style={{ textAlign: 'center', padding: '20px 0' }}>
+                <div style={{ fontSize: 52, marginBottom: 16 }}>📬</div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: '#111827', marginBottom: 8 }}>
+                  Check your inbox!
+                </div>
+                <div style={{ fontSize: 13, color: '#6b7280', lineHeight: 1.7, marginBottom: 24 }}>
+                  We sent a password reset link to <strong>{form.email}</strong>.
+                  Click it to set a new password.
+                </div>
+                <button onClick={() => { setMode('login'); setResetSent(false); setError(null) }}
+                  style={{ width: '100%', padding: '13px 0', background: '#f57b46',
+                    border: 'none', borderRadius: 12, color: '#fff', fontSize: 14,
+                    fontWeight: 600, cursor: 'pointer', ...font }}>
+                  Back to sign in
+                </button>
+              </div>
+            ) : (
+              <>
+                <div style={{ fontSize: 18, fontWeight: 700, color: '#111827', marginBottom: 4 }}>
+                  Reset your password 🔑
+                </div>
+                <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 24, lineHeight: 1.6 }}>
+                  Enter the email you signed up with and we'll send you a reset link.
+                </div>
+
+                <div style={{ marginBottom: 20 }}>
+                  <label style={lbl}>Email address</label>
+                  <input style={inp} type="email" value={form.email}
+                    onChange={e => update('email', e.target.value)}
+                    onFocus={focusStyle} onBlur={blurStyle}
+                    placeholder="heidi@email.com" autoComplete="email"
+                    onKeyDown={e => e.key === 'Enter' && handleForgotPassword()} />
+                </div>
+
+                {error && (
+                  <div style={{ padding: '10px 14px', background: '#fef2f2',
+                    border: '0.5px solid #fecaca', borderRadius: 10,
+                    fontSize: 12, color: '#dc2626', marginBottom: 16 }}>
+                    {error}
+                  </div>
+                )}
+
+                <button onClick={handleForgotPassword} disabled={loading}
+                  style={{ width: '100%', padding: '14px 0', background: '#f57b46',
+                    border: 'none', borderRadius: 12, color: '#fff', fontSize: 14,
+                    fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer',
+                    opacity: loading ? .6 : 1, ...font,
+                    boxShadow: '0 4px 14px rgba(245,123,70,.35)', marginBottom: 16 }}>
+                  {loading ? 'Sending…' : 'Send reset link'}
+                </button>
+
+                <div style={{ textAlign: 'center' }}>
+                  <button onClick={() => { setMode('login'); setError(null) }}
+                    style={{ background: 'none', border: 'none', color: '#6b7280',
+                      fontSize: 12, cursor: 'pointer', ...font }}>
+                    ← Back to sign in
+                  </button>
+                </div>
+              </>
+            )}
           </>
         )}
       </div>
