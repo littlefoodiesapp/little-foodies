@@ -100,6 +100,18 @@ export default function ExplorePage() {
       setRestaurants(data || [])
       setLoading(false)
     })
+    // Restore search state when coming back from a restaurant page
+    const savedSearch = sessionStorage.getItem('lf_search')
+    const savedRadius = sessionStorage.getItem('lf_radius')
+    if (savedSearch) {
+      setSearch(savedSearch)
+      setHasSearched(true)
+      sessionStorage.removeItem('lf_search')
+    }
+    if (savedRadius) {
+      setRadius(Number(savedRadius))
+      sessionStorage.removeItem('lf_radius')
+    }
   }, [])
 
   function handleSearchChange(val) {
@@ -415,6 +427,10 @@ export default function ExplorePage() {
                 }
                 return (
                   <Link key={r.id} to={'/restaurant/' + r.id}
+                    onClick={() => {
+                      sessionStorage.setItem('lf_search', search)
+                      sessionStorage.setItem('lf_radius', String(radius))
+                    }}
                     style={{ textDecoration: 'none', color: 'inherit' }}>
                     <div style={{ background: '#fff', border: '0.5px solid #e5e7eb',
                       borderRadius: 14, overflow: 'hidden' }}>
