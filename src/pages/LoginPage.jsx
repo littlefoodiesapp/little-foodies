@@ -305,7 +305,7 @@ export default function LoginPage() {
               <input style={inp} type="email" value={form.email}
                 onChange={e => update('email', e.target.value)}
                 onFocus={focusStyle} onBlur={blurStyle}
-                placeholder="heidi@email.com" autoComplete="email" />
+                placeholder="email@email.com" autoComplete="email" />
             </div>
 
             <div style={{ marginBottom: 6 }}>
@@ -473,7 +473,7 @@ export default function LoginPage() {
               <input style={inp} type="email" value={form.email}
                 onChange={e => update('email', e.target.value)}
                 onFocus={focusStyle} onBlur={blurStyle}
-                placeholder="heidi@email.com" autoComplete="email" />
+                placeholder="email@email.com" autoComplete="email" />
             </div>
 
             <div style={{ marginBottom: 20 }}>
@@ -550,7 +550,7 @@ export default function LoginPage() {
                   <input style={inp} type="email" value={form.email}
                     onChange={e => update('email', e.target.value)}
                     onFocus={focusStyle} onBlur={blurStyle}
-                    placeholder="heidi@email.com" autoComplete="email"
+                    placeholder="email@email.com" autoComplete="email"
                     onKeyDown={e => e.key === 'Enter' && handleForgotPassword()} />
                 </div>
                 {error && (
