@@ -116,14 +116,18 @@ export default function ExplorePage() {
 
   function handleSearchChange(val) {
     setSearch(val)
-    setHasSearched(val.trim().length > 0)
+    // Don't auto-search - wait for Enter or button tap
+    if (val.trim().length === 0) setHasSearched(false)
+  }
+
+  function submitSearch() {
+    if (search.trim().length > 0) setHasSearched(true)
   }
 
   function handleQuickSearch(val) {
-    // Strip ", NJ" or ", NY" from city pills so it matches the city field
     const cleaned = val.replace(/,\s*(NJ|NY|CT|PA)$/i, '').trim()
     setSearch(cleaned)
-    setHasSearched(true)
+    setHasSearched(true)  // Pills always search immediately
   }
 
   function clearSearch() {
@@ -208,15 +212,25 @@ export default function ExplorePage() {
               <span style={{ position: 'absolute', left: 14, top: '50%',
                 transform: 'translateY(-50%)', fontSize: 18, pointerEvents: 'none' }}>🔍</span>
               <input
-                type="text"
+                type="search"
                 value={search}
                 onChange={e => handleSearchChange(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && submitSearch()}
                 placeholder="Search by zip code, city, or restaurant..."
-                style={{ width: '100%', padding: '14px 44px', border: '2px solid #f57b46',
-                  borderRadius: 14, fontSize: 14, outline: 'none', background: '#fff',
+                style={{ width: '100%', padding: '14px 100px 14px 44px',
+                  border: '2px solid #f57b46', borderRadius: 14, fontSize: 16,
+                  outline: 'none', background: '#fff',
                   boxSizing: 'border-box', ...font,
                   boxShadow: '0 4px 20px rgba(245,123,70,.15)' }}
               />
+              <button onClick={submitSearch}
+                style={{ position: 'absolute', right: 8, top: '50%',
+                  transform: 'translateY(-50%)', padding: '8px 16px',
+                  background: '#f57b46', border: 'none', borderRadius: 10,
+                  color: '#fff', fontSize: 13, fontWeight: 600,
+                  cursor: 'pointer', ...font }}>
+                Search
+              </button>
             </div>
             <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
               {['Union', 'Clark', 'Cranford', '07083', '07066', '07016'].map(q => (
@@ -296,17 +310,26 @@ export default function ExplorePage() {
               <span style={{ position: 'absolute', left: 11, top: '50%',
                 transform: 'translateY(-50%)', fontSize: 14, pointerEvents: 'none' }}>🔍</span>
               <input
-                type="text"
+                type="search"
                 value={search}
                 onChange={e => handleSearchChange(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && submitSearch()}
                 placeholder="Search zip, city, or restaurant..."
-                style={{ width: '100%', padding: '9px 36px 9px 33px',
-                  border: '1.5px solid #f57b46', borderRadius: 10, fontSize: 12,
+                style={{ width: '100%', padding: '9px 70px 9px 33px',
+                  border: '1.5px solid #f57b46', borderRadius: 10, fontSize: 16,
                   outline: 'none', background: '#fff', boxSizing: 'border-box', ...font }}
               />
+              <button onClick={submitSearch}
+                style={{ position: 'absolute', right: search ? 28 : 6, top: '50%',
+                  transform: 'translateY(-50%)', padding: '5px 10px',
+                  background: '#f57b46', border: 'none', borderRadius: 8,
+                  color: '#fff', fontSize: 11, fontWeight: 600,
+                  cursor: 'pointer', ...font }}>
+                Go
+              </button>
               {search && (
                 <button onClick={clearSearch}
-                  style={{ position: 'absolute', right: 10, top: '50%',
+                  style={{ position: 'absolute', right: 6, top: '50%',
                     transform: 'translateY(-50%)', background: '#e5e7eb',
                     border: 'none', borderRadius: '50%', width: 20, height: 20,
                     cursor: 'pointer', fontSize: 11, color: '#6b7280',
