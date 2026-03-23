@@ -191,13 +191,14 @@ export default function ProfilePage() {
                 Joined {joinDate}
               </div>
             )}
-            {/* Tier badge */}
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5,
+            {/* Tier badge — clickable */}
+            <Link to="/tiers" style={{ display: 'inline-flex', alignItems: 'center', gap: 5,
               background: 'rgba(255,255,255,.2)', borderRadius: 20,
-              padding: '3px 10px' }}>
+              padding: '3px 10px', textDecoration: 'none' }}>
               <span style={{ fontSize: 13 }}>{tier.icon}</span>
               <span style={{ fontSize: 11, fontWeight: 600, color: '#fff' }}>{tier.name}</span>
-            </div>
+              <span style={{ fontSize: 10, color: 'rgba(255,255,255,.7)' }}>›</span>
+            </Link>
           </div>
 
           {/* Points */}

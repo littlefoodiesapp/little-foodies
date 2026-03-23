@@ -5,6 +5,7 @@ import RestaurantPage      from './pages/RestaurantPage'
 import ProfilePage         from './pages/ProfilePage'
 import LoginPage           from './pages/LoginPage'
 import AddRestaurantPage   from './pages/AddRestaurantPage'
+import TiersPage           from './pages/TiersPage'
 
 const font = { fontFamily: "'Montserrat', sans-serif" }
 
@@ -30,6 +31,7 @@ export default function App() {
           <Route path="/"               element={<ExplorePage />} />
           <Route path="/restaurant/:id" element={<RestaurantPage />} />
           <Route path="/profile"        element={user ? <ProfilePage /> : <Navigate to="/login" />} />
+          <Route path="/tiers"          element={user ? <TiersPage /> : <Navigate to="/login" />} />
           <Route path="/add"            element={user ? <AddRestaurantPage /> : <Navigate to="/login" />} />
           <Route path="/login"          element={!user ? <LoginPage /> : <Navigate to="/" />} />
         </Routes>
@@ -37,33 +39,21 @@ export default function App() {
 
       {!hideNav && (
         <nav style={{
-          position: 'fixed',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          height: 64,
-          background: '#fff',
-          borderTop: '1px solid #e5e7eb',
-          display: 'flex',
-          alignItems: 'center',
-          zIndex: 9999,
+          position: 'fixed', bottom: 0, left: 0, right: 0, height: 64,
+          background: '#fff', borderTop: '1px solid #e5e7eb',
+          display: 'flex', alignItems: 'center', zIndex: 9999,
           boxShadow: '0 -4px 20px rgba(0,0,0,.07)'
         }}>
           <div style={{ maxWidth: 480, width: '100%', margin: '0 auto',
             display: 'flex', alignItems: 'center' }}>
-
-            {/* Explore */}
             <Link to="/" style={{
               flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',
               gap: 2, textDecoration: 'none', paddingBottom: 4,
               color: loc.pathname === '/' ? '#f57b46' : '#9ca3af',
               fontSize: 10, fontWeight: 600, ...font
             }}>
-              <span style={{ fontSize: 20 }}>🔍</span>
-              Explore
+              <span style={{ fontSize: 20 }}>🔍</span>Explore
             </Link>
-
-            {/* Add restaurant — center button */}
             <Link to="/add" style={{
               flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',
               gap: 2, textDecoration: 'none', paddingBottom: 4,
@@ -73,14 +63,11 @@ export default function App() {
               <div style={{
                 width: 44, height: 44, background: '#f57b46', borderRadius: '50%',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 24, color: '#fff',
-                boxShadow: '0 4px 14px rgba(245,123,70,.45)',
+                fontSize: 24, color: '#fff', boxShadow: '0 4px 14px rgba(245,123,70,.45)',
                 marginBottom: 1
               }}>+</div>
               Add
             </Link>
-
-            {/* Profile */}
             <Link to={user ? "/profile" : "/login"} style={{
               flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',
               gap: 2, textDecoration: 'none', paddingBottom: 4,
@@ -90,7 +77,6 @@ export default function App() {
               <span style={{ fontSize: 20 }}>👤</span>
               {user ? 'Profile' : 'Sign in'}
             </Link>
-
           </div>
         </nav>
       )}
