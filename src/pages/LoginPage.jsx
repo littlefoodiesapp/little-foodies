@@ -31,7 +31,7 @@ const KIDS_OPTIONS = [
 export default function LoginPage() {
   const navigate = useNavigate()
   const { setUser } = useAuth()
-  const [mode, setMode] = useState('signup') // 'signup' | 'login' | 'forgot'
+  const [mode, setMode] = useState('login') // 'signup' | 'login' | 'forgot'
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(false)
