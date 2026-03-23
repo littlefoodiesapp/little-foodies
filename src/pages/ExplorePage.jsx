@@ -125,9 +125,8 @@ export default function ExplorePage() {
   }
 
   function handleQuickSearch(val) {
-    const cleaned = val.replace(/,\s*(NJ|NY|CT|PA)$/i, '').trim()
-    setSearch(cleaned)
-    setHasSearched(true)  // Pills always search immediately
+    setSearch(val)
+    setHasSearched(true)
   }
 
   function clearSearch() {
@@ -157,8 +156,8 @@ export default function ExplorePage() {
   }
 
   const term = search.trim().toLowerCase()
-  const isZip = isZipCode(term)
-  const searchCoords = isZip ? ZIP_COORDS[term] : null
+  const isZip = true  // Search is zip-code only
+  const searchCoords = ZIP_COORDS[term] || null
 
   const visible = restaurants
     .filter(r => {
@@ -175,13 +174,8 @@ export default function ExplorePage() {
         return (r.zip || '').includes(term)
       }
 
-      // City / name / cuisine text search
-      return (
-        (r.city    || '').toLowerCase().includes(term) ||
-        (r.name    || '').toLowerCase().includes(term) ||
-        (r.cuisine || '').toLowerCase().includes(term) ||
-        (r.zip     || '').toLowerCase().includes(term)
-      )
+      // Zip code text match fallback
+      return (r.zip || '').toLowerCase().includes(term)
     })
     .filter(r => {
       if (!activeFilters.size) return true
@@ -216,7 +210,7 @@ export default function ExplorePage() {
                 value={search}
                 onChange={e => handleSearchChange(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && submitSearch()}
-                placeholder="Search by zip code, city, or restaurant..."
+                placeholder="Search by zip code..."
                 style={{ width: '100%', padding: '14px 100px 14px 44px',
                   border: '2px solid #f57b46', borderRadius: 14, fontSize: 16,
                   outline: 'none', background: '#fff',
@@ -233,7 +227,7 @@ export default function ExplorePage() {
               </button>
             </div>
             <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
-              {['Union', 'Clark', 'Cranford', '07083', '07066', '07016'].map(q => (
+              {['07083', '07066', '07016', '07974', '07060', '07901'].map(q => (
                 <button key={q} onClick={() => handleQuickSearch(q)}
                   style={{ padding: '6px 13px', background: '#fff',
                     border: '1px solid #e5e7eb', borderRadius: 20,
@@ -314,7 +308,7 @@ export default function ExplorePage() {
                 value={search}
                 onChange={e => handleSearchChange(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && submitSearch()}
-                placeholder="Search zip, city, or restaurant..."
+                placeholder="Search by zip code..."
                 style={{ width: '100%', padding: '9px 70px 9px 33px',
                   border: '1.5px solid #f57b46', borderRadius: 10, fontSize: 16,
                   outline: 'none', background: '#fff', boxSizing: 'border-box', ...font }}
