@@ -40,6 +40,9 @@ export default function AdminPage() {
   // Claims
   const [claims, setClaims]         = useState([])
 
+  // Feedback
+  const [feedback, setFeedback]     = useState([])
+
   // Events
   const [events, setEvents]         = useState([])
   const [showEventForm, setShowEventForm] = useState(false)
@@ -64,6 +67,7 @@ export default function AdminPage() {
     loadRestaurants()
     loadEvents()
     loadClaims()
+    loadFeedback()
     setLoading(false)
   }
 
@@ -89,6 +93,14 @@ export default function AdminPage() {
       .select('*, profiles(display_name, first_name, last_name)')
       .order('created_at', { ascending: false })
     setClaims(data || [])
+  }
+
+  async function loadFeedback() {
+    const { data } = await supabase
+      .from('feedback')
+      .select('*, profiles(display_name, first_name)')
+      .order('created_at', { ascending: false })
+    setFeedback(data || [])
   }
 
   async function approveClaim(claim) {
@@ -306,6 +318,7 @@ export default function AdminPage() {
           { id: 'restaurants', label: '🍽️ Restaurants' },
           { id: 'events',      label: '🎉 Events' },
           { id: 'claims',      label: `🔑 Claims${claims.filter(c => c.status === 'pending').length > 0 ? ` (${claims.filter(c => c.status === 'pending').length})` : ''}` },
+          { id: 'feedback',    label: `💬 Feedback${feedback.length > 0 ? ` (${feedback.length})` : ''}` },
         ].map(t => (
           <button key={t.id} onClick={() => setActiveTab(t.id)}
             style={{ flex: 1, padding: '12px 0', background: 'none', border: 'none',
@@ -387,6 +400,60 @@ export default function AdminPage() {
                   ))}
                 </div>
               )}
+
+              {/* OpenTable URL */}
+              <div style={{ marginBottom: 8 }}>
+                <div style={{ fontSize: 10, fontWeight: 600, color: '#9ca3af',
+                  textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 4 }}>
+                  OpenTable URL (optional)
+                </div>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <input
+                    defaultValue={r.opentable_url || ''}
+                    id={`ot-${r.id}`}
+                    placeholder="https://www.opentable.com/restaurant-name"
+                    style={{ flex: 1, padding: '7px 10px', border: '1px solid #e5e7eb',
+                      borderRadius: 8, fontSize: 11, outline: 'none',
+                      fontFamily: "'Montserrat', sans-serif", background: '#fafafa' }}
+                  />
+                  <button onClick={async () => {
+                    const val = document.getElementById('ot-' + r.id)?.value || null
+                    await supabase.from('restaurants')
+                      .update({ opentable_url: val || null }).eq('id', r.id)
+                    showToast('OpenTable link saved ✓')
+                  }}
+                    style={{ padding: '7px 12px', background: '#DA3743', border: 'none',
+                      borderRadius: 8, color: '#fff', fontSize: 11, fontWeight: 600,
+                      cursor: 'pointer', fontFamily: "'Montserrat', sans-serif",
+                      whiteSpace: 'nowrap' }}>
+                    Save
+                  </button>
+                </div>
+              </div>
+
+              {/* OpenTable URL */}
+              <div style={{ marginBottom: 8 }}>
+                <div style={{ fontSize: 10, fontWeight: 600, color: '#9ca3af',
+                  textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 4 }}>
+                  OpenTable URL (optional)
+                </div>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <input
+                    defaultValue={r.opentable_url || ''}
+                    onBlur={async e => {
+                      const val = e.target.value.trim()
+                      await supabase.from('restaurants')
+                        .update({ opentable_url: val || null })
+                        .eq('id', r.id)
+                      showToast('OpenTable URL saved ✓')
+                    }}
+                    placeholder="https://www.opentable.com/restaurant-name"
+                    style={{ flex: 1, padding: '7px 10px', border: '1px solid #e5e7eb',
+                      borderRadius: 8, fontSize: 11, outline: 'none',
+                      fontFamily: "'Montserrat', sans-serif", color: '#374151' }}
+                  />
+                </div>
+              </div>
 
               {/* Actions */}
               <div style={{ display: 'flex', gap: 8 }}>
@@ -568,6 +635,52 @@ export default function AdminPage() {
               )}
             </div>
           ))}
+        </div>
+      )}
+
+      {/* ── FEEDBACK TAB ────────────────────────────── */}
+      {activeTab === 'feedback' && (
+        <div style={{ padding: '14px 16px 0' }}>
+          {feedback.length === 0 && (
+            <div style={{ textAlign: 'center', padding: '40px 0', color: '#9ca3af' }}>
+              No feedback yet
+            </div>
+          )}
+          {feedback.map(f => {
+            const typeConfig = {
+              suggestion: { icon: '💡', bg: '#fefae8', color: '#854d0e' },
+              bug:        { icon: '🐛', bg: '#fef2f2', color: '#dc2626' },
+              restaurant: { icon: '🍽️', bg: '#fff3ee', color: '#c2410c' },
+              general:    { icon: '💬', bg: '#eff6ff', color: '#1e40af' },
+            }
+            const cfg = typeConfig[f.type] || typeConfig.general
+            return (
+              <div key={f.id} style={{ background: '#fff', border: '0.5px solid #e5e7eb',
+                borderRadius: 14, padding: '14px', marginBottom: 10 }}>
+                <div style={{ display: 'flex', alignItems: 'center',
+                  justifyContent: 'space-between', marginBottom: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 16, padding: '4px 10px',
+                      background: cfg.bg, borderRadius: 20,
+                      color: cfg.color, fontWeight: 600, fontSize: 11 }}>
+                      {cfg.icon} {f.type}
+                    </span>
+                    <span style={{ fontSize: 11, color: '#9ca3af' }}>
+                      {f.profiles?.display_name || f.profiles?.first_name || 'User'}
+                    </span>
+                  </div>
+                  <span style={{ fontSize: 10, color: '#9ca3af' }}>
+                    {new Date(f.created_at).toLocaleDateString('en-US', {
+                      month: 'short', day: 'numeric'
+                    })}
+                  </span>
+                </div>
+                <div style={{ fontSize: 13, color: '#374151', lineHeight: 1.6 }}>
+                  {f.message}
+                </div>
+              </div>
+            )
+          })}
         </div>
       )}
 

@@ -51,6 +51,11 @@ export default function ProfilePage() {
   const [activeTab, setActiveTab]   = useState('overview')
   const [showEditProfile, setShowEditProfile] = useState(false)
   const [editForm, setEditForm]     = useState({})
+  const [showFeedback, setShowFeedback] = useState(false)
+  const [feedbackType, setFeedbackType] = useState('suggestion')
+  const [feedbackMsg, setFeedbackMsg]   = useState('')
+  const [feedbackSent, setFeedbackSent] = useState(false)
+  const [sendingFeedback, setSendingFeedback] = useState(false)
 
   useEffect(() => {
     if (user) {
@@ -123,6 +128,24 @@ export default function ProfilePage() {
     await supabase.from('profiles').update({ display_name: nameVal.trim() }).eq('id', user.id)
     setProfile(prev => ({ ...prev, display_name: nameVal.trim() }))
     setEditName(false)
+  }
+
+  async function saveFeedback() {
+    if (!feedbackMsg.trim()) return
+    setSendingFeedback(true)
+    await supabase.from('feedback').insert({
+      user_id: user.id,
+      type:    feedbackType,
+      message: feedbackMsg.trim(),
+    })
+    setFeedbackSent(true)
+    setSendingFeedback(false)
+    setTimeout(() => {
+      setShowFeedback(false)
+      setFeedbackSent(false)
+      setFeedbackMsg('')
+      setFeedbackType('suggestion')
+    }, 2000)
   }
 
   async function saveProfile() {
@@ -401,6 +424,20 @@ export default function ProfilePage() {
             <span style={{ color: '#9ca3af', fontSize: 16 }}>›</span>
           </button>
 
+          {/* Feedback */}
+          <button onClick={() => setShowFeedback(true)}
+            style={{ width: '100%', padding: '13px 16px', background: '#fff',
+              border: '1px solid #e5e7eb', borderRadius: 12, fontSize: 13,
+              fontWeight: 600, color: '#374151', cursor: 'pointer', ...font,
+              marginBottom: 10, display: 'flex', alignItems: 'center',
+              justifyContent: 'space-between', boxSizing: 'border-box' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ fontSize: 18 }}>💬</span>
+              <span>Send feedback or suggestions</span>
+            </div>
+            <span style={{ color: '#9ca3af', fontSize: 16 }}>›</span>
+          </button>
+
           {/* Sign out */}
           <button onClick={() => { logout(); navigate('/') }}
             style={{ width: '100%', padding: '11px 0', background: '#fff',
@@ -517,6 +554,114 @@ export default function ProfilePage() {
           )}
         </div>
       )}
+      {/* Feedback Modal */}
+      {showFeedback && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
+          zIndex: 9999, display: 'flex', alignItems: 'flex-end' }}>
+          <div style={{ background: '#fff', width: '100%', borderRadius: '20px 20px 0 0',
+            padding: '24px 20px 40px', ...font }}>
+
+            <div style={{ display: 'flex', alignItems: 'center',
+              justifyContent: 'space-between', marginBottom: 20 }}>
+              <div style={{ fontSize: 16, fontWeight: 700, color: '#111827' }}>
+                💬 Share your thoughts
+              </div>
+              <button onClick={() => { setShowFeedback(false); setFeedbackSent(false); setFeedbackMsg('') }}
+                style={{ background: '#f3f4f6', border: 'none', borderRadius: '50%',
+                  width: 32, height: 32, fontSize: 16, cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                ✕
+              </button>
+            </div>
+
+            {feedbackSent ? (
+              <div style={{ textAlign: 'center', padding: '20px 0' }}>
+                <div style={{ fontSize: 52, marginBottom: 12 }}>🙏</div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: '#111827', marginBottom: 6 }}>
+                  Thank you!
+                </div>
+                <div style={{ fontSize: 13, color: '#6b7280' }}>
+                  Your feedback helps make Little Foodies better for every family!
+                </div>
+              </div>
+            ) : (
+              <>
+                <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 16, lineHeight: 1.6 }}>
+                  We read every message and use your feedback to improve the app!
+                </div>
+
+                {/* Feedback type */}
+                <div style={{ marginBottom: 16 }}>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: '#374151',
+                    textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 8 }}>
+                    What kind of feedback?
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    {[
+                      { val: 'suggestion', label: '💡 Suggestion' },
+                      { val: 'bug',        label: '🐛 Bug report' },
+                      { val: 'restaurant', label: '🍽️ Restaurant issue' },
+                      { val: 'general',    label: '💬 General' },
+                    ].map(t => (
+                      <button key={t.val} onClick={() => setFeedbackType(t.val)}
+                        style={{ padding: '7px 14px', borderRadius: 20, fontSize: 12,
+                          fontWeight: 600, cursor: 'pointer', border: 'none',
+                          background: feedbackType === t.val ? '#fff3ee' : '#f3f4f6',
+                          color: feedbackType === t.val ? '#c2410c' : '#6b7280',
+                          border: feedbackType === t.val ? '1.5px solid #fdc9b0' : '1.5px solid transparent',
+                          ...font }}>
+                        {t.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Message */}
+                <div style={{ marginBottom: 20 }}>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: '#374151',
+                    textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 6 }}>
+                    Your message
+                  </div>
+                  <textarea
+                    value={feedbackMsg}
+                    onChange={e => setFeedbackMsg(e.target.value)}
+                    rows={4}
+                    placeholder={
+                      feedbackType === 'suggestion' ? "I'd love to see..."
+                      : feedbackType === 'bug' ? "When I try to... it..."
+                      : feedbackType === 'restaurant' ? "The restaurant listing for..."
+                      : "I wanted to share..."
+                    }
+                    style={{ width: '100%', padding: '12px 14px', border: '1.5px solid #e5e7eb',
+                      borderRadius: 12, fontSize: 16, boxSizing: 'border-box',
+                      outline: 'none', resize: 'none', ...font, background: '#fafafa',
+                      lineHeight: 1.6 }}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <button onClick={() => { setShowFeedback(false); setFeedbackMsg('') }}
+                    style={{ flex: 1, padding: '13px 0', background: '#fff',
+                      border: '1.5px solid #e5e7eb', borderRadius: 12, fontSize: 14,
+                      fontWeight: 600, color: '#6b7280', cursor: 'pointer', ...font }}>
+                    Cancel
+                  </button>
+                  <button onClick={saveFeedback}
+                    disabled={!feedbackMsg.trim() || sendingFeedback}
+                    style={{ flex: 2, padding: '13px 0', background: '#f57b46',
+                      border: 'none', borderRadius: 12, fontSize: 14,
+                      fontWeight: 600, color: '#fff', cursor: 'pointer', ...font,
+                      opacity: !feedbackMsg.trim() || sendingFeedback ? .6 : 1,
+                      boxShadow: '0 4px 14px rgba(245,123,70,.3)' }}>
+                    {sendingFeedback ? 'Sending…' : 'Send feedback 🙏'}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Edit Profile Modal */}
       {showEditProfile && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
