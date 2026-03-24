@@ -34,7 +34,9 @@ export default function LeaderboardPage() {
   const [loading, setLoading]   = useState(true)
   const [tab, setTab]           = useState('alltime')
 
-  useEffect(() => { loadLeaderboard() }, [tab])
+  useEffect(() => {
+    loadLeaderboard()
+  }, [tab])
 
   async function loadLeaderboard() {
     setLoading(true)

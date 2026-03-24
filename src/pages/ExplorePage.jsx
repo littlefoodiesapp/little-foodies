@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { getRestaurants, addFavorite, removeFavorite } from '../lib/api'
 import { useAuth } from '../hooks/useAuth'

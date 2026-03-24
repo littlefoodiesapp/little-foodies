@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
@@ -49,8 +49,12 @@ export default function EventsPage() {
   const [toast, setToast]         = useState(null)
   const [rsvping, setRsvping]     = useState(null)
 
+  const loaded = useRef(false)
   useEffect(() => {
-    loadEvents()
+    if (!loaded.current) {
+      loaded.current = true
+      loadEvents()
+    }
   }, [])
 
   async function loadEvents() {
