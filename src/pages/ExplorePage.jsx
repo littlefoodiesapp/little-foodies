@@ -59,7 +59,7 @@ export default function ExplorePage() {
   const [restaurants, setRestaurants] = useState(cachedRestaurants || [])
   const [favIds, setFavIds]           = useState(new Set())
   const [activeFilters, setFilters]   = useState(new Set())
-  const [loading, setLoading]         = useState(!cachedRestaurants)
+  const [loading, setLoading]         = useState(false) // never block UI if we have cache
   const [search, setSearch]           = useState(() => sessionStorage.getItem('lf_search') || '')
   const [hasSearched, setHasSearched] = useState(() => sessionStorage.getItem('lf_hassearched') === 'true')
   const [radius, setRadius]           = useState(() => Number(sessionStorage.getItem('lf_radius')) || 5)
@@ -84,6 +84,19 @@ export default function ExplorePage() {
           cachedRestaurants = list
           setRestaurants(list)
           setLoading(false)
+        })
+    } else {
+      // We have cached data — show it immediately, refresh silently in background
+      setRestaurants(cachedRestaurants)
+      supabase
+        .from('restaurants')
+        .select('*, amenities(*)')
+        .order('name')
+        .then(({ data }) => {
+          if (data) {
+            cachedRestaurants = data
+            setRestaurants(data)
+          }
         })
     }
   }, [])
