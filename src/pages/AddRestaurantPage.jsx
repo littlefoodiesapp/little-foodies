@@ -185,6 +185,10 @@ export default function AddRestaurantPage() {
           await supabase.from('profiles').update({ points: (profile.points || 0) + totalPoints }).eq('id', currentUser.id)
         }
       }
+      // Invalidate the Explore page restaurant cache so new restaurant appears
+      if (typeof window !== 'undefined') {
+        window.__lf_invalidate_restaurants = true
+      }
       setSuccess(true)
     } catch (e) {
       setError(e.message)

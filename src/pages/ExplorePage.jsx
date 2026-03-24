@@ -66,8 +66,14 @@ export default function ExplorePage() {
   const fetchedFavs = useRef(false)
 
   useEffect(() => {
+    // Invalidate cache if a restaurant was just added
+    if (window.__lf_invalidate_restaurants) {
+      cachedRestaurants = null
+      window.__lf_invalidate_restaurants = false
+    }
     // Only fetch if we don't have cached data
     if (!cachedRestaurants) {
+      setLoading(true)
       supabase
         .from('restaurants')
         .select('*, amenities(*)')
