@@ -153,7 +153,7 @@ export default function ExplorePage() {
       )
     })
 
-  const noResults = hasSearched && term && !loading && visible.length === 0
+  const noResults = hasSearched && term && !loading && restaurants.length > 0 && visible.length === 0
 
   return (
     <div style={{ ...font, background: '#f9fafb', minHeight: '100vh', paddingBottom: 80 }}>
@@ -306,11 +306,9 @@ export default function ExplorePage() {
 
           <div style={{ fontSize: 11, fontWeight: 600, color: '#9ca3af', padding: '10px 16px',
             textTransform: 'uppercase', letterSpacing: '.06em' }}>
-            {loading
+            {loading && restaurants.length === 0
             ? 'Searching...'
-            : restaurants.length === 0
-              ? 'No data — check your connection'
-              : visible.length + ' restaurant' + (visible.length !== 1 ? 's' : '') + ' within ' + radius + ' miles of ' + search}
+            : visible.length + ' restaurant' + (visible.length !== 1 ? 's' : '') + ' within ' + radius + ' miles of ' + search}
           </div>
 
           {noResults && (
