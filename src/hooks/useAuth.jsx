@@ -3,51 +3,56 @@ import { supabase } from '../lib/supabase'
 
 const AuthContext = createContext(null)
 
+// Cache user at module level so it survives navigation
+let cachedUser = undefined // undefined = unknown, null = logged out
+
 export function AuthProvider({ children }) {
-  const [user, setUser]       = useState(undefined) // undefined = still loading, null = not logged in
-  const [loading, setLoading] = useState(true)
+  const [user, setUser]       = useState(cachedUser)
+  const [loading, setLoading] = useState(cachedUser === undefined)
   const initialized = useRef(false)
 
   useEffect(() => {
     if (initialized.current) return
     initialized.current = true
 
-    // Get initial session fast
     supabase.auth.getSession().then(({ data: { session } }) => {
       const u = session?.user ?? null
-      setUser(u?.email_confirmed_at ? u : null)
+      const confirmed = u?.email_confirmed_at ? u : null
+      cachedUser = confirmed
+      setUser(confirmed)
       setLoading(false)
     })
 
-    // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         const u = session?.user ?? null
 
         if (event === 'SIGNED_OUT') {
+          cachedUser = null
           setUser(null)
           setLoading(false)
           return
         }
 
         if (event === 'PASSWORD_RECOVERY') {
+          cachedUser = u
           setUser(u)
           setLoading(false)
           return
         }
 
-        // Block unconfirmed users
         if (u && !u.email_confirmed_at) {
           await supabase.auth.signOut()
+          cachedUser = null
           setUser(null)
           setLoading(false)
           return
         }
 
+        cachedUser = u
         setUser(u)
         setLoading(false)
 
-        // Create profile on first confirmed sign in
         if (event === 'SIGNED_IN' && u?.email_confirmed_at) {
           const meta = u.user_metadata || {}
           const { data: existing } = await supabase
@@ -72,6 +77,7 @@ export function AuthProvider({ children }) {
   }, [])
 
   async function logout() {
+    cachedUser = null
     await supabase.auth.signOut()
     setUser(null)
   }
