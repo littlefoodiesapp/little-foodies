@@ -78,6 +78,8 @@ export function AuthProvider({ children }) {
 
   async function logout() {
     cachedUser = null
+    // Signal all page-level caches to reset on next load
+    window.__lf_clear_profile_cache = true
     await supabase.auth.signOut()
     setUser(null)
   }

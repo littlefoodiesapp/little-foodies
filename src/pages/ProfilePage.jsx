@@ -63,9 +63,22 @@ export default function ProfilePage() {
   const [sendingFeedback, setSendingFeedback] = useState(false)
 
   useEffect(() => {
+    // Clear stale cache on logout
+    if (window.__lf_clear_profile_cache) {
+      cachedProfile   = null
+      cachedHistory   = []
+      cachedFavorites = []
+      window.__lf_clear_profile_cache = false
+    }
     if (user) {
       setLoading(true)
       loadAll()
+    } else {
+      // Not logged in — reset local state too
+      setProfile(null)
+      setHistory([])
+      setFavorites([])
+      setLoading(false)
     }
   }, [user?.id])
 
@@ -434,7 +447,7 @@ export default function ProfilePage() {
           </button>
 
           {/* Sign out */}
-          <button onClick={() => { logout(); navigate('/') }}
+          <button onClick={async () => { await logout(); navigate('/') }}
             style={{ width: '100%', padding: '11px 0', background: '#fff',
               border: '1px solid #e5e7eb', borderRadius: 10, fontSize: 13,
               fontWeight: 600, color: '#6b7280', cursor: 'pointer', ...font,
