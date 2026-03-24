@@ -559,7 +559,7 @@ export default function ProfilePage() {
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
           zIndex: 9999, display: 'flex', alignItems: 'flex-end' }}>
           <div style={{ background: '#fff', width: '100%', borderRadius: '20px 20px 0 0',
-            padding: '24px 20px 40px', ...font }}>
+            padding: '24px 20px 100px', ...font }}>
 
             <div style={{ display: 'flex', alignItems: 'center',
               justifyContent: 'space-between', marginBottom: 20 }}>
@@ -667,7 +667,7 @@ export default function ProfilePage() {
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
           zIndex: 9999, display: 'flex', alignItems: 'flex-end' }}>
           <div style={{ background: '#fff', width: '100%', borderRadius: '20px 20px 0 0',
-            padding: '24px 20px 40px', ...font }}>
+            padding: '24px 20px 100px', ...font }}>
 
             <div style={{ display: 'flex', alignItems: 'center',
               justifyContent: 'space-between', marginBottom: 20 }}>
