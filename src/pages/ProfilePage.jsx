@@ -82,23 +82,35 @@ export default function ProfilePage() {
     }
   }, [user?.id])
 
-  async function loadAll() {
-    // Safety timeout - never stay stuck loading more than 5 seconds
-    const timeout = setTimeout(() => setLoading(false), 5000)
+  async function loadAll(attempt = 1) {
+    // Safety timeout - never stay stuck loading more than 8 seconds
+    const timeout = setTimeout(() => setLoading(false), 8000)
     try {
-      // Run queries independently so one failure doesn't block the whole page
-      const [profRes, histRes, favRes] = await Promise.all([
-        Promise.resolve(supabase.from('profiles').select('*').eq('id', user.id).single()).catch(() => ({ data: null })),
-        Promise.resolve(supabase.from('points_ledger').select('*').eq('user_id', user.id)
-          .order('created_at', { ascending: false }).limit(50)).catch(() => ({ data: [] })),
-        Promise.resolve(supabase.from('favorites')
+      // Fetch profile directly first — this is the most important query
+      const { data: profileData, error: profileErr } = await supabase
+        .from('profiles').select('*').eq('id', user.id).single()
+
+      if (profileErr) {
+        console.error('Profile fetch error (attempt ' + attempt + '):', profileErr.message, 'user.id:', user.id)
+        // Retry once after a short delay if first attempt fails
+        if (attempt === 1) {
+          clearTimeout(timeout)
+          setTimeout(() => loadAll(2), 1500)
+          return
+        }
+      }
+
+      // Fetch history and favorites independently so failures don't block profile
+      const [histRes, favRes] = await Promise.all([
+        supabase.from('points_ledger').select('*').eq('user_id', user.id)
+          .order('created_at', { ascending: false }).limit(50)
+          .then(r => r).catch(() => ({ data: [] })),
+        supabase.from('favorites')
           .select('restaurant_id, restaurants(id, name, emoji, cuisine, city, state, status)')
           .eq('user_id', user.id)
-          .order('created_at', { ascending: false })).catch(() => ({ data: [] })),
+          .order('created_at', { ascending: false })
+          .then(r => r).catch(() => ({ data: [] })),
       ])
-
-      // Never create/overwrite profiles here - that's useAuth's job
-      let profileData = profRes.data
 
       cachedProfile   = profileData
       cachedHistory   = histRes.data || []
