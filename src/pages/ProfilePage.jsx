@@ -75,13 +75,13 @@ export default function ProfilePage() {
     try {
       // Run queries independently so one failure doesn't block the whole page
       const [profRes, histRes, favRes] = await Promise.all([
-        supabase.from('profiles').select('*').eq('id', user.id).single().catch(() => ({ data: null })),
-        supabase.from('points_ledger').select('*').eq('user_id', user.id)
-          .order('created_at', { ascending: false }).limit(50).catch(() => ({ data: [] })),
-        supabase.from('favorites')
+        Promise.resolve(supabase.from('profiles').select('*').eq('id', user.id).single()).catch(() => ({ data: null })),
+        Promise.resolve(supabase.from('points_ledger').select('*').eq('user_id', user.id)
+          .order('created_at', { ascending: false }).limit(50)).catch(() => ({ data: [] })),
+        Promise.resolve(supabase.from('favorites')
           .select('restaurant_id, restaurants(id, name, emoji, cuisine, city, state, status)')
           .eq('user_id', user.id)
-          .order('created_at', { ascending: false }).catch(() => ({ data: [] })),
+          .order('created_at', { ascending: false })).catch(() => ({ data: [] })),
       ])
 
       // Never create/overwrite profiles here - that's useAuth's job
