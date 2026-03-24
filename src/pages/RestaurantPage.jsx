@@ -18,6 +18,13 @@ const AMENITIES = [
   { id: 'outdoor',    label: 'Outdoor seating',   icon: '🌿', color: '#f0fdf4', border: '#86efac', text: '#166534' },
 ]
 
+const ALLERGENS = [
+  { id: 'peanut_free',   label: 'Peanut-free',        icon: '🥜', color: '#fff3ee', border: '#fdc9b0', text: '#c2410c' },
+  { id: 'tree_nut_free', label: 'Tree nut-free',       icon: '🌰', color: '#fefae8', border: '#fde9a0', text: '#854d0e' },
+  { id: 'gluten_free',   label: 'Gluten-free options', icon: '🌾', color: '#e6f7f5', border: '#99ddd6', text: '#065f55' },
+  { id: 'dairy_free',    label: 'Dairy-free options',  icon: '🥛', color: '#e8f4fd', border: '#9ed4f6', text: '#0552a0' },
+]
+
 const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']
 const NOISE_EMOJI = { 1:'😌', 2:'🤫', 3:'😊', 4:'🔊', 5:'📢' }
 const NOISE_LABELS = { 1:'Very quiet', 2:'Quiet', 3:'Moderate', 4:'Lively', 5:'Very loud' }
@@ -53,6 +60,11 @@ export default function RestaurantPage() {
   const [loading, setLoading]       = useState(true)
   const [activePhoto, setActivePhoto] = useState(0)
   const [savingNoise, setSavingNoise] = useState(false)
+  const [allergens, setAllergens]       = useState([])
+  const [myAllergenVotes, setMyAllergenVotes] = useState({})
+  const [kidsMenuPhotos, setKidsMenuPhotos]   = useState([])
+  const [showKidsMenu, setShowKidsMenu]       = useState(false)
+  const [uploadingKidsMenu, setUploadingKidsMenu] = useState(false)
 
   useEffect(() => { loadAll() }, [id])
 
@@ -107,6 +119,35 @@ export default function RestaurantPage() {
       .order('created_at', { ascending: false })
     setReviews(revData || [])
 
+    // Load allergens
+    const { data: aData } = await supabase
+      .from('allergens')
+      .select('*')
+      .eq('restaurant_id', id)
+    setAllergens(aData || [])
+
+    // Load kids menu photos
+    const { data: kmData } = await supabase
+      .from('kids_menu_photos')
+      .select('*')
+      .eq('restaurant_id', id)
+      .order('created_at')
+    setKidsMenuPhotos(kmData || [])
+
+    // Load my allergen votes
+    if (user) {
+      const { data: avData } = await supabase
+        .from('allergen_votes')
+        .select('allergen_key, vote')
+        .eq('restaurant_id', id)
+        .eq('user_id', user.id)
+      if (avData) {
+        const map = {}
+        avData.forEach(v => { map[v.allergen_key] = v.vote })
+        setMyAllergenVotes(map)
+      }
+    }
+
     // Store in cache
     restaurantCache[id] = {
       restaurant: r,
@@ -141,6 +182,65 @@ export default function RestaurantPage() {
         : a
     ))
     showToast('+5 pts! Thanks for voting 🙌')
+  }
+
+  async function castAllergenVote(allergen_key, vote) {
+    if (!user) { showToast('Sign in to vote!', false); return }
+    if (myAllergenVotes[allergen_key]) return
+    // Check if allergen row exists, if not create it
+    const existing = allergens.find(a => a.allergen_key === allergen_key)
+    if (existing) {
+      await supabase.from('allergens').update({
+        yes_votes: existing.yes_votes + (vote === 'yes' ? 1 : 0),
+        no_votes:  existing.no_votes  + (vote === 'no' ? 1 : 0),
+        is_verified: (existing.yes_votes + existing.no_votes + 1) >= 5,
+      }).eq('id', existing.id)
+    } else {
+      await supabase.from('allergens').insert({
+        restaurant_id: id, allergen_key,
+        yes_votes: vote === 'yes' ? 1 : 0,
+        no_votes:  vote === 'no' ? 1 : 0,
+      })
+    }
+    await supabase.from('allergen_votes').insert({
+      restaurant_id: id, allergen_key, vote, user_id: user.id
+    })
+    setMyAllergenVotes(prev => ({ ...prev, [allergen_key]: vote }))
+    setAllergens(prev => {
+      const idx = prev.findIndex(a => a.allergen_key === allergen_key)
+      if (idx >= 0) {
+        const updated = [...prev]
+        updated[idx] = {
+          ...updated[idx],
+          yes_votes: updated[idx].yes_votes + (vote === 'yes' ? 1 : 0),
+          no_votes:  updated[idx].no_votes  + (vote === 'no' ? 1 : 0),
+        }
+        return updated
+      }
+      return [...prev, { restaurant_id: id, allergen_key,
+        yes_votes: vote === 'yes' ? 1 : 0, no_votes: vote === 'no' ? 1 : 0, is_verified: false }]
+    })
+    showToast('+5 pts! Thanks for voting 🙌')
+  }
+
+  async function uploadKidsMenuPhoto(e) {
+    if (!user) { showToast('Sign in to upload!', false); return }
+    const file = e.target.files[0]
+    if (!file) return
+    setUploadingKidsMenu(true)
+    const ext  = file.name.split('.').pop()
+    const path = 'kids-menus/' + id + '/' + Date.now() + '.' + ext
+    const { error: upErr } = await supabase.storage
+      .from('restaurant-photos')
+      .upload(path, file)
+    if (upErr) { showToast(upErr.message, false); setUploadingKidsMenu(false); return }
+    const { data: urlData } = supabase.storage.from('restaurant-photos').getPublicUrl(path)
+    await supabase.from('kids_menu_photos').insert({
+      restaurant_id: id, uploaded_by: user.id, photo_url: urlData.publicUrl
+    })
+    setKidsMenuPhotos(prev => [...prev, { photo_url: urlData.publicUrl }])
+    showToast('+10 pts! Kids menu photo added 🍟')
+    setUploadingKidsMenu(false)
   }
 
   async function saveNoiseVote() {
@@ -211,6 +311,7 @@ export default function RestaurantPage() {
   if (!restaurant) return <div style={{ ...font, padding: 32 }}>Restaurant not found.</div>
 
   const amenityMap    = Object.fromEntries(amenities.map(a => [a.amenity_key, a]))
+  const allergenMap   = Object.fromEntries(allergens.map(a => [a.allergen_key, a]))
   const hoursObj      = parseHours(restaurant.hours)
   const todayHours    = getTodayHours(hoursObj)
   const isVerified    = restaurant.status === 'verified' || restaurant.status === 'partner'
@@ -389,8 +490,17 @@ export default function RestaurantPage() {
             const confirmed  = isVer && likelyYes
             const denied     = isVer && !likelyYes
             return (
-              <div key={am.id} style={{ display: 'flex', flexDirection: 'column',
-                alignItems: 'center', gap: 5, minWidth: 60 }}>
+              <div key={am.id}
+                onClick={am.id === 'kidsmenu' ? () => setShowKidsMenu(true) : undefined}
+                style={{ display: 'flex', flexDirection: 'column',
+                alignItems: 'center', gap: 5, minWidth: 60,
+                cursor: am.id === 'kidsmenu' ? 'pointer' : 'default' }}>
+                {am.id === 'kidsmenu' && (
+                  <div style={{ fontSize: 8, color: '#f57b46', fontWeight: 700,
+                    textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: -2 }}>
+                    View menu
+                  </div>
+                )}
                 <div style={{ width: 52, height: 52, borderRadius: 14,
                   background: confirmed ? am.color : denied ? '#f3f4f6' : '#f9fafb',
                   border: confirmed ? '1.5px solid ' + am.border : denied ? '1.5px solid #d1d5db' : '1.5px solid #e5e7eb',
@@ -635,6 +745,128 @@ export default function RestaurantPage() {
           </div>
         ))}
       </div>
+
+      {/* Kids Menu Photo Modal */}
+      {showKidsMenu && (
+        <div onClick={() => setShowKidsMenu(false)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)',
+            zIndex: 9999, display: 'flex', flexDirection: 'column',
+            alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div onClick={e => e.stopPropagation()}
+            style={{ background: '#fff', borderRadius: 20, width: '100%', maxWidth: 400,
+              maxHeight: '85vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ padding: '16px 20px', borderBottom: '0.5px solid #e5e7eb',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ fontSize: 15, fontWeight: 700, color: '#111827', ...font }}>
+                🍟 Kids Menu
+              </div>
+              <button onClick={() => setShowKidsMenu(false)}
+                style={{ background: '#f3f4f6', border: 'none', borderRadius: '50%',
+                  width: 30, height: 30, cursor: 'pointer', fontSize: 14 }}>✕</button>
+            </div>
+            <div style={{ overflowY: 'auto', padding: 16, flex: 1 }}>
+              {kidsMenuPhotos.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '32px 0', color: '#9ca3af', fontSize: 13, ...font }}>
+                  No kids menu photos yet — be the first to add one!
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {kidsMenuPhotos.map((p, i) => (
+                    <img key={i} src={p.photo_url} alt={'Kids menu ' + (i+1)}
+                      style={{ width: '100%', borderRadius: 12, objectFit: 'contain',
+                        maxHeight: 400, background: '#f3f4f6' }} />
+                  ))}
+                </div>
+              )}
+              <label style={{ display: 'block', marginTop: 16, padding: '12px 0',
+                background: '#fff3ee', border: '1.5px dashed #fdc9b0', borderRadius: 12,
+                textAlign: 'center', cursor: 'pointer', ...font }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: '#c2410c' }}>
+                  {uploadingKidsMenu ? 'Uploading…' : '📷 Add kids menu photo · +10 pts'}
+                </span>
+                <input type="file" accept="image/*" onChange={uploadKidsMenuPhoto}
+                  style={{ display: 'none' }} />
+              </label>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Allergen Section */}
+      <div style={{ padding: '14px 16px', background: '#fff', borderBottom: '0.5px solid #f3f4f6', marginTop: 8 }}>
+        <div style={{ fontSize: 11, fontWeight: 600, color: '#374151',
+          textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4 }}>
+          ⚠️ Allergen info
+        </div>
+        <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 12, lineHeight: 1.6 }}>
+          Community-reported · always confirm with the restaurant directly
+        </div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+          {ALLERGENS.map(al => {
+            const data      = allergenMap[al.id]
+            const isVer     = data?.is_verified
+            const likelyYes = data && data.yes_votes >= data.no_votes && data.yes_votes > 0
+            const confirmed = isVer && likelyYes
+            const denied    = isVer && !likelyYes
+            const noData    = !data
+            return (
+              <div key={al.id} style={{ display: 'flex', alignItems: 'center', gap: 6,
+                padding: '6px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600,
+                background: confirmed ? al.color : denied ? '#f3f4f6' : '#fafafa',
+                border: '1.5px solid ' + (confirmed ? al.border : denied ? '#d1d5db' : '#e5e7eb'),
+                color: confirmed ? al.text : denied ? '#9ca3af' : '#d1d5db',
+                opacity: denied ? 0.6 : 1 }}>
+                <span>{al.icon}</span>
+                <span>{al.label}</span>
+                {confirmed && <span style={{ fontSize: 10 }}>✓</span>}
+                {denied && <span style={{ fontSize: 10 }}>✗</span>}
+                {noData && <span style={{ fontSize: 10, color: '#d1d5db' }}>?</span>}
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Allergen voting */}
+        <div style={{ borderTop: '0.5px solid #f3f4f6', paddingTop: 12 }}>
+          <div style={{ fontSize: 11, color: '#374151', fontWeight: 600, marginBottom: 8 }}>
+            Know something? Help other parents · earn 5 pts each
+          </div>
+          {ALLERGENS.map(al => {
+            const myV  = myAllergenVotes[al.id]
+            const data = allergenMap[al.id] || { yes_votes: 0, no_votes: 0 }
+            const total = data.yes_votes + data.no_votes
+            return (
+              <div key={al.id} style={{ display: 'flex', alignItems: 'center',
+                gap: 8, marginBottom: 8 }}>
+                <span style={{ fontSize: 16, minWidth: 24 }}>{al.icon}</span>
+                <span style={{ fontSize: 12, flex: 1, color: '#374151', fontWeight: 500 }}>
+                  {al.label}
+                  {total > 0 && <span style={{ color: '#9ca3af', fontWeight: 400 }}> · {total} vote{total !== 1 ? 's' : ''}</span>}
+                </span>
+                {myV ? (
+                  <span style={{ fontSize: 11, color: '#00a994', fontWeight: 600 }}>✓ Voted {myV}</span>
+                ) : (
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <button onClick={() => castAllergenVote(al.id, 'yes')}
+                      style={{ padding: '5px 12px', borderRadius: 8, fontSize: 11,
+                        fontWeight: 600, cursor: 'pointer', background: '#e6f7f5',
+                        color: '#065f55', border: '1.5px solid #99ddd6', ...font }}>
+                      Yes
+                    </button>
+                    <button onClick={() => castAllergenVote(al.id, 'no')}
+                      style={{ padding: '5px 12px', borderRadius: 8, fontSize: 11,
+                        fontWeight: 600, cursor: 'pointer', background: '#fef0f8',
+                        color: '#9d1479', border: '1.5px solid #f9b8e0', ...font }}>
+                      No
+                    </button>
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
     </div>
   )
 }
