@@ -135,7 +135,6 @@ export default function LoginPage() {
       setLoading(false); return
     }
 
-    if (data?.user) setUser(data.user)
     track.login()
     navigate('/')
   }
