@@ -137,7 +137,7 @@ export default function AddRestaurantPage() {
     setLoading(true)
     setError(null)
     try {
-      const { data: { user: currentUser } } = await supabase.auth.getUser()
+      const currentUser = user
       const { data: newRestaurant, error: insertErr } = await supabase
         .from('restaurants')
         .insert({
