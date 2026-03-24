@@ -91,27 +91,16 @@ export default function ExplorePage() {
   const [favIds, setFavIds]           = useState(new Set())
   const [activeFilters, setFilters]   = useState(new Set())
   const [loading, setLoading]         = useState(true)
-  const [search, setSearch]           = useState('')
-  const [hasSearched, setHasSearched] = useState(false)
-  const [radius, setRadius]           = useState(5)
+  // Restore search state from sessionStorage on mount
+  const [search, setSearch]         = useState(() => sessionStorage.getItem('lf_search') || '')
+  const [hasSearched, setHasSearched] = useState(() => sessionStorage.getItem('lf_hassearched') === 'true')
+  const [radius, setRadius]           = useState(() => Number(sessionStorage.getItem('lf_radius')) || 5)
 
   useEffect(() => {
     getRestaurants().then(({ data }) => {
       setRestaurants(data || [])
       setLoading(false)
     })
-    // Restore search state when coming back from a restaurant page
-    const savedSearch = sessionStorage.getItem('lf_search')
-    const savedRadius = sessionStorage.getItem('lf_radius')
-    if (savedSearch) {
-      setSearch(savedSearch)
-      setHasSearched(true)
-      sessionStorage.removeItem('lf_search')
-    }
-    if (savedRadius) {
-      setRadius(Number(savedRadius))
-      sessionStorage.removeItem('lf_radius')
-    }
   }, [])
 
   function handleSearchChange(val) {
@@ -141,6 +130,9 @@ export default function ExplorePage() {
     setSearch('')
     setHasSearched(false)
     setFilters(new Set())
+    sessionStorage.removeItem('lf_search')
+    sessionStorage.removeItem('lf_hassearched')
+    sessionStorage.removeItem('lf_radius')
   }
 
   function toggleFilter(id) {
