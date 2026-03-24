@@ -32,6 +32,9 @@ const NOISE_LABELS = { 1:'Very quiet', 2:'Quiet', 3:'Moderate', 4:'Lively', 5:'V
 function parseHours(raw) {
   if (!raw) return null
   if (typeof raw === 'object') return raw
+  // Try to parse as JSON first (from Google Places API)
+  try { return JSON.parse(raw) } catch {}
+  // Fall back to treating as a plain string
   return { Daily: raw }
 }
 
@@ -65,7 +68,6 @@ export default function RestaurantPage() {
   const [kidsMenuPhotos, setKidsMenuPhotos]   = useState([])
   const [showKidsMenu, setShowKidsMenu]       = useState(false)
   const [uploadingKidsMenu, setUploadingKidsMenu] = useState(false)
-  const [reportingPhoto, setReportingPhoto]       = useState(false)
 
   useEffect(() => { loadAll() }, [id])
 
@@ -224,23 +226,8 @@ export default function RestaurantPage() {
     showToast('+5 pts! Thanks for voting 🙌')
   }
 
-  async function reportPhoto(photo) {
-    if (!user) { showToast('Sign in to report!', false); return }
-    setReportingPhoto(true)
-    await supabase.from('photo_reports').insert({
-      restaurant_id: id,
-      photo_url: photo.photo_url,
-      photo_id: photo.id || null,
-      reported_by: user.id,
-      status: 'pending',
-    })
-    setReportingPhoto(false)
-    showToast('Thanks! We\'ll review this photo 🙏')
-  }
-
   async function uploadKidsMenuPhoto(e) {
     if (!user) { showToast('Sign in to upload!', false); return }
-    if (kidsMenuPhotos.length >= 1) { showToast('A menu photo already exists for this restaurant', false); return }
     const file = e.target.files[0]
     if (!file) return
     setUploadingKidsMenu(true)
@@ -783,37 +770,26 @@ export default function RestaurantPage() {
             <div style={{ overflowY: 'auto', padding: 16, flex: 1 }}>
               {kidsMenuPhotos.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '32px 0', color: '#9ca3af', fontSize: 13, ...font }}>
-                  No kids menu photo yet — be the first to add one!
+                  No kids menu photos yet — be the first to add one!
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  <img src={kidsMenuPhotos[0].photo_url} alt="Kids menu"
-                    style={{ width: '100%', borderRadius: 12, objectFit: 'contain',
-                      maxHeight: 420, background: '#f3f4f6' }} />
-                  {/* Report button */}
-                  <button
-                    onClick={() => reportPhoto(kidsMenuPhotos[0])}
-                    disabled={reportingPhoto}
-                    style={{ width: '100%', padding: '10px 0', background: '#fff',
-                      border: '1.5px solid #e5e7eb', borderRadius: 10, fontSize: 12,
-                      fontWeight: 600, color: '#9ca3af', cursor: 'pointer', ...font,
-                      opacity: reportingPhoto ? .6 : 1 }}>
-                    {reportingPhoto ? 'Reporting…' : '🚩 Report image as incorrect'}
-                  </button>
+                  {kidsMenuPhotos.map((p, i) => (
+                    <img key={i} src={p.photo_url} alt={'Kids menu ' + (i+1)}
+                      style={{ width: '100%', borderRadius: 12, objectFit: 'contain',
+                        maxHeight: 400, background: '#f3f4f6' }} />
+                  ))}
                 </div>
               )}
-              {/* Only show upload button if no photo exists yet */}
-              {kidsMenuPhotos.length === 0 && (
-                <label style={{ display: 'block', marginTop: 16, padding: '12px 0',
-                  background: '#fff3ee', border: '1.5px dashed #fdc9b0', borderRadius: 12,
-                  textAlign: 'center', cursor: 'pointer', ...font }}>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: '#c2410c' }}>
-                    {uploadingKidsMenu ? 'Uploading…' : '📷 Add kids menu photo · +10 pts'}
-                  </span>
-                  <input type="file" accept="image/*" onChange={uploadKidsMenuPhoto}
-                    style={{ display: 'none' }} />
-                </label>
-              )}
+              <label style={{ display: 'block', marginTop: 16, padding: '12px 0',
+                background: '#fff3ee', border: '1.5px dashed #fdc9b0', borderRadius: 12,
+                textAlign: 'center', cursor: 'pointer', ...font }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: '#c2410c' }}>
+                  {uploadingKidsMenu ? 'Uploading…' : '📷 Add kids menu photo · +10 pts'}
+                </span>
+                <input type="file" accept="image/*" onChange={uploadKidsMenuPhoto}
+                  style={{ display: 'none' }} />
+              </label>
             </div>
           </div>
         </div>

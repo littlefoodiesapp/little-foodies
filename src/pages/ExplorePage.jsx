@@ -59,7 +59,7 @@ export default function ExplorePage() {
   const [restaurants, setRestaurants] = useState(cachedRestaurants || [])
   const [favIds, setFavIds]           = useState(new Set())
   const [activeFilters, setFilters]   = useState(new Set())
-  const [loading, setLoading]         = useState(false) // never block UI if we have cache
+  const [loading, setLoading]         = useState(!cachedRestaurants)
   const [search, setSearch]           = useState(() => sessionStorage.getItem('lf_search') || '')
   const [hasSearched, setHasSearched] = useState(() => sessionStorage.getItem('lf_hassearched') === 'true')
   const [radius, setRadius]           = useState(() => Number(sessionStorage.getItem('lf_radius')) || 5)
@@ -84,19 +84,6 @@ export default function ExplorePage() {
           cachedRestaurants = list
           setRestaurants(list)
           setLoading(false)
-        })
-    } else {
-      // We have cached data — show it immediately, refresh silently in background
-      setRestaurants(cachedRestaurants)
-      supabase
-        .from('restaurants')
-        .select('*, amenities(*)')
-        .order('name')
-        .then(({ data }) => {
-          if (data) {
-            cachedRestaurants = data
-            setRestaurants(data)
-          }
         })
     }
   }, [])
@@ -404,7 +391,18 @@ export default function ExplorePage() {
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                           paddingTop: 8, borderTop: '0.5px solid #f3f4f6' }}>
-                          <span style={{ fontSize: 10, color: '#9ca3af' }}>{r.hours}</span>
+                          <span style={{ fontSize: 10, color: '#9ca3af' }}>
+                            {r.hours ? (() => {
+                              try {
+                                const h = JSON.parse(r.hours)
+                                const today = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][new Date().getDay()]
+                                const todayHours = h[today] || h['Daily']
+                                return todayHours ? '🕐 Today: ' + todayHours : null
+                              } catch {
+                                return r.hours
+                              }
+                            })() : null}
+                          </span>
                           {r.city && <span style={{ fontSize: 10, color: '#9ca3af' }}>{r.city}, {r.state}</span>}
                         </div>
                       </div>
