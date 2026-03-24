@@ -84,22 +84,8 @@ export default function ProfilePage() {
           .order('created_at', { ascending: false }).catch(() => ({ data: [] })),
       ])
 
-      // If profile doesn't exist yet, create it
+      // Never create/overwrite profiles here - that's useAuth's job
       let profileData = profRes.data
-      if (!profileData) {
-        const meta = user.user_metadata || {}
-        const newProfile = {
-          id:           user.id,
-          display_name: meta.display_name || meta.first_name || user.email?.split('@')[0] || 'Parent',
-          first_name:   meta.first_name || null,
-          last_name:    meta.last_name  || null,
-          zip:          meta.zip        || null,
-          kids:         meta.kids       || null,
-          points:       0,
-        }
-        await supabase.from('profiles').upsert(newProfile).catch(e => console.error('Profile upsert error:', e))
-        profileData = newProfile
-      }
 
       cachedProfile   = profileData
       cachedHistory   = histRes.data || []
