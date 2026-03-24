@@ -6,6 +6,9 @@ import { track } from '../lib/analytics'
 
 const font = { fontFamily: "'Montserrat', sans-serif" }
 
+// Cache restaurant data so back navigation is instant
+const restaurantCache = {}
+
 const AMENITIES = [
   { id: 'highchair',  label: 'High chairs',      icon: '🪑', color: '#fff3ee', border: '#fdc9b0', text: '#c2410c' },
   { id: 'changing_f', label: "Women's changing",  icon: '🚺', color: '#fef0f8', border: '#f9b8e0', text: '#9d1479' },
@@ -104,6 +107,14 @@ export default function RestaurantPage() {
       .order('created_at', { ascending: false })
     setReviews(revData || [])
 
+    // Store in cache
+    restaurantCache[id] = {
+      restaurant: r,
+      amenities: r?.amenities || [],
+      photos: pData || [],
+      noiseVotes: nData ? Object.fromEntries([1,2,3,4,5].map(s => [s, nData.filter(v => v.score === s).length])) : {1:0,2:0,3:0,4:0,5:0},
+      reviews: revData || [],
+    }
     setLoading(false)
     if (r) track.viewRestaurant(r.name)
   }
