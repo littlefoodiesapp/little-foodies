@@ -43,6 +43,9 @@ export default function AdminPage() {
   // Feedback
   const [feedback, setFeedback]     = useState([])
 
+  // Photo Reports
+  const [photoReports, setPhotoReports] = useState([])
+
   // Events
   const [events, setEvents]         = useState([])
   const [showEventForm, setShowEventForm] = useState(false)
@@ -68,6 +71,7 @@ export default function AdminPage() {
     loadEvents()
     loadClaims()
     loadFeedback()
+    loadPhotoReports()
     setLoading(false)
   }
 
@@ -101,6 +105,37 @@ export default function AdminPage() {
       .select('*, profiles(display_name, first_name)')
       .order('created_at', { ascending: false })
     setFeedback(data || [])
+  }
+
+  async function loadPhotoReports() {
+    const { data } = await supabase
+      .from('photo_reports')
+      .select('*, profiles(display_name)')
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false })
+    setPhotoReports(data || [])
+  }
+
+  async function deleteReportedPhoto(report) {
+    if (!window.confirm('Delete this kids menu photo? This cannot be undone.')) return
+    // Delete from kids_menu_photos
+    await supabase.from('kids_menu_photos')
+      .delete().eq('photo_url', report.photo_url)
+    // Try to delete from storage
+    const path = report.photo_url.split('/restaurant-photos/')[1]
+    if (path) await supabase.storage.from('restaurant-photos').remove([path])
+    // Mark report as resolved
+    await supabase.from('photo_reports')
+      .update({ status: 'resolved' }).eq('id', report.id)
+    setPhotoReports(prev => prev.filter(r => r.id !== report.id))
+    showToast('Photo deleted ✓')
+  }
+
+  async function dismissReport(id) {
+    await supabase.from('photo_reports')
+      .update({ status: 'dismissed' }).eq('id', id)
+    setPhotoReports(prev => prev.filter(r => r.id !== id))
+    showToast('Report dismissed')
   }
 
   async function approveClaim(claim) {
@@ -319,6 +354,7 @@ export default function AdminPage() {
           { id: 'events',      label: '🎉 Events' },
           { id: 'claims',      label: `🔑 Claims${claims.filter(c => c.status === 'pending').length > 0 ? ` (${claims.filter(c => c.status === 'pending').length})` : ''}` },
           { id: 'feedback',    label: `💬 Feedback${feedback.length > 0 ? ` (${feedback.length})` : ''}` },
+          { id: 'reports',     label: `🚩 Reports${photoReports.filter(r => r.status === 'pending').length > 0 ? ` (${photoReports.filter(r => r.status === 'pending').length})` : ''}` },
         ].map(t => (
           <button key={t.id} onClick={() => setActiveTab(t.id)}
             style={{ flex: 1, padding: '12px 0', background: 'none', border: 'none',
@@ -681,6 +717,56 @@ export default function AdminPage() {
               </div>
             )
           })}
+        </div>
+      )}
+
+      {/* ── PHOTO REPORTS TAB ──────────────────────── */}
+      {activeTab === 'reports' && (
+        <div style={{ padding: '14px 16px 0' }}>
+          {photoReports.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '40px 0', color: '#9ca3af', fontSize: 13, ...font }}>
+              No pending photo reports 🎉
+            </div>
+          ) : (
+            photoReports.map(report => (
+              <div key={report.id} style={{ background: '#fff', border: '0.5px solid #e5e7eb',
+                borderRadius: 14, overflow: 'hidden', marginBottom: 14 }}>
+                {/* Photo preview */}
+                <img src={report.photo_url} alt="Reported photo"
+                  style={{ width: '100%', maxHeight: 280, objectFit: 'contain',
+                    background: '#f3f4f6', display: 'block' }} />
+                <div style={{ padding: '12px 14px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center',
+                    justifyContent: 'space-between', marginBottom: 6 }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: '#374151' }}>
+                      🚩 Reported as incorrect
+                    </div>
+                    <div style={{ fontSize: 10, color: '#9ca3af' }}>
+                      {new Date(report.created_at).toLocaleDateString('en-US', {
+                        month: 'short', day: 'numeric' })}
+                    </div>
+                  </div>
+                  <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 12 }}>
+                    Reported by: {report.profiles?.display_name || 'Unknown'}
+                  </div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button onClick={() => dismissReport(report.id)}
+                      style={{ flex: 1, padding: '9px 0', background: '#fff',
+                        border: '1.5px solid #e5e7eb', borderRadius: 10, fontSize: 12,
+                        fontWeight: 600, color: '#6b7280', cursor: 'pointer', ...font }}>
+                      Dismiss
+                    </button>
+                    <button onClick={() => deleteReportedPhoto(report)}
+                      style={{ flex: 2, padding: '9px 0', background: '#ef4444',
+                        border: 'none', borderRadius: 10, fontSize: 12,
+                        fontWeight: 600, color: '#fff', cursor: 'pointer', ...font }}>
+                      🗑️ Delete photo
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       )}
 
