@@ -116,17 +116,25 @@ export default function ExplorePage() {
 
   function handleSearchChange(val) {
     setSearch(val)
-    // Don't auto-search - wait for Enter or button tap
-    if (val.trim().length === 0) setHasSearched(false)
+    sessionStorage.setItem('lf_search', val)
+    if (val.trim().length === 0) {
+      setHasSearched(false)
+      sessionStorage.setItem('lf_hassearched', 'false')
+    }
   }
 
   function submitSearch() {
-    if (search.trim().length > 0) setHasSearched(true)
+    if (search.trim().length > 0) {
+      setHasSearched(true)
+      sessionStorage.setItem('lf_hassearched', 'true')
+    }
   }
 
   function handleQuickSearch(val) {
     setSearch(val)
     setHasSearched(true)
+    sessionStorage.setItem('lf_search', val)
+    sessionStorage.setItem('lf_hassearched', 'true')
   }
 
   function clearSearch() {
@@ -338,7 +346,7 @@ export default function ExplorePage() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
                 <span style={{ fontSize: 11, color: '#6b7280', fontWeight: 500 }}>Radius:</span>
                 {[2, 5, 10, 15, 25].map(r => (
-                  <button key={r} onClick={() => setRadius(r)}
+                  <button key={r} onClick={() => setRadius(r); sessionStorage.setItem('lf_radius', r)}
                     style={{ padding: '4px 10px', borderRadius: 20, fontSize: 11,
                       fontWeight: 600, cursor: 'pointer', border: 'none',
                       background: radius === r ? '#f57b46' : '#f3f4f6',
