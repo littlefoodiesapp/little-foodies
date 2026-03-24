@@ -115,6 +115,22 @@ export default function AddRestaurantPage() {
         const state        = getShort('administrative_area_level_1')
         const zip          = get('postal_code')
 
+        // Parse hours from Google Places opening_hours
+        let parsedHours = ''
+        if (p.opening_hours?.weekday_text?.length) {
+          // Convert "Monday: 11:00 AM – 10:00 PM" → { Monday: "11:00 AM – 10:00 PM", ... }
+          const hoursObj = {}
+          p.opening_hours.weekday_text.forEach(line => {
+            const colon = line.indexOf(': ')
+            if (colon > -1) {
+              const day = line.slice(0, colon)
+              const time = line.slice(colon + 2)
+              hoursObj[day] = time
+            }
+          })
+          parsedHours = JSON.stringify(hoursObj)
+        }
+
         setForm(prev => ({
           ...prev,
           name:    p.name || prev.name,
@@ -124,6 +140,7 @@ export default function AddRestaurantPage() {
           zip,
           phone:   p.formatted_phone_number || '',
           website: p.website ? p.website.replace(/\/$/, '') : '',
+          hours:   parsedHours || prev.hours,
         }))
         setPlaceSelected(true)
       }
@@ -184,10 +201,6 @@ export default function AddRestaurantPage() {
         if (profile) {
           await supabase.from('profiles').update({ points: (profile.points || 0) + totalPoints }).eq('id', currentUser.id)
         }
-      }
-      // Invalidate the Explore page restaurant cache so new restaurant appears
-      if (typeof window !== 'undefined') {
-        window.__lf_invalidate_restaurants = true
       }
       setSuccess(true)
     } catch (e) {
@@ -357,9 +370,50 @@ export default function AddRestaurantPage() {
             </div>
 
             <div style={{ marginBottom: 20 }}>
-              <div style={lbl}>Hours</div>
-              <input style={inp} value={form.hours}
-                onChange={e => update('hours', e.target.value)} placeholder="11am–10pm" />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                <div style={lbl}>Hours</div>
+                {form.hours && (() => {
+                  try { JSON.parse(form.hours); return (
+                    <span style={{ fontSize: 10, background: '#e6f7f5', color: '#065f55',
+                      border: '0.5px solid #99ddd6', borderRadius: 20,
+                      padding: '2px 8px', fontWeight: 600 }}>
+                      ✓ Auto-filled from Google
+                    </span>
+                  )} catch { return null }
+                })()}
+              </div>
+              {form.hours && (() => {
+                try {
+                  const hoursObj = JSON.parse(form.hours)
+                  const days = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday']
+                  return (
+                    <div style={{ background: '#f9fafb', border: '1.5px solid #e5e7eb',
+                      borderRadius: 10, padding: '10px 12px', fontSize: 12, color: '#374151' }}>
+                      {days.map(day => hoursObj[day] ? (
+                        <div key={day} style={{ display: 'flex', justifyContent: 'space-between',
+                          padding: '3px 0', borderBottom: '0.5px solid #f3f4f6' }}>
+                          <span style={{ fontWeight: 600, color: '#6b7280', minWidth: 90 }}>{day}</span>
+                          <span>{hoursObj[day]}</span>
+                        </div>
+                      ) : null)}
+                      <button onClick={() => update('hours', '')}
+                        style={{ marginTop: 8, fontSize: 11, color: '#9ca3af', background: 'none',
+                          border: 'none', cursor: 'pointer', padding: 0, fontFamily: font.fontFamily }}>
+                        ✕ Clear and enter manually
+                      </button>
+                    </div>
+                  )
+                } catch {
+                  return (
+                    <input style={inp} value={form.hours}
+                      onChange={e => update('hours', e.target.value)} placeholder="11am–10pm" />
+                  )
+                }
+              })()}
+              {!form.hours && (
+                <input style={inp} value={form.hours}
+                  onChange={e => update('hours', e.target.value)} placeholder="11am–10pm (optional)" />
+              )}
             </div>
 
             {/* Emoji picker */}
