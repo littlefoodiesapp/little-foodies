@@ -73,14 +73,15 @@ export default function ProfilePage() {
     // Safety timeout - never stay stuck loading more than 5 seconds
     const timeout = setTimeout(() => setLoading(false), 5000)
     try {
+      // Run queries independently so one failure doesn't block the whole page
       const [profRes, histRes, favRes] = await Promise.all([
-        supabase.from('profiles').select('*').eq('id', user.id).single(),
+        supabase.from('profiles').select('*').eq('id', user.id).single().catch(() => ({ data: null })),
         supabase.from('points_ledger').select('*').eq('user_id', user.id)
-          .order('created_at', { ascending: false }).limit(50),
+          .order('created_at', { ascending: false }).limit(50).catch(() => ({ data: [] })),
         supabase.from('favorites')
           .select('restaurant_id, restaurants(id, name, emoji, cuisine, city, state, status)')
           .eq('user_id', user.id)
-          .order('created_at', { ascending: false }),
+          .order('created_at', { ascending: false }).catch(() => ({ data: [] })),
       ])
 
       // If profile doesn't exist yet, create it
@@ -96,7 +97,7 @@ export default function ProfilePage() {
           kids:         meta.kids       || null,
           points:       0,
         }
-        await supabase.from('profiles').upsert(newProfile)
+        await supabase.from('profiles').upsert(newProfile).catch(e => console.error('Profile upsert error:', e))
         profileData = newProfile
       }
 
