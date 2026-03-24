@@ -68,18 +68,26 @@ export default function ExplorePage() {
   const [radius, setRadius]           = useState(() => Number(sessionStorage.getItem('lf_radius')) || 5)
 
   useEffect(() => {
-    getRestaurants().then(({ data }) => {
-      setRestaurants(data || [])
-      setLoading(false)
-    })
-    if (user) {
-      import('../lib/api').then(({ getFavorites }) => {
-        getFavorites(user.id).then(({ data }) => {
-          setFavIds(new Set((data || []).map(f => f.restaurant_id)))
-        })
+    getRestaurants()
+      .then(({ data, error }) => {
+        if (error) console.error('getRestaurants error:', error)
+        setRestaurants(data || [])
+        setLoading(false)
       })
-    }
+      .catch(err => {
+        console.error('getRestaurants failed:', err)
+        setLoading(false)
+      })
   }, [])
+
+  useEffect(() => {
+    if (!user) return
+    import('../lib/api').then(({ getFavorites }) => {
+      getFavorites(user.id).then(({ data }) => {
+        setFavIds(new Set((data || []).map(f => f.restaurant_id)))
+      }).catch(() => {})
+    })
+  }, [user])
 
   function handleSearchChange(val) {
     setSearch(val)
@@ -298,7 +306,11 @@ export default function ExplorePage() {
 
           <div style={{ fontSize: 11, fontWeight: 600, color: '#9ca3af', padding: '10px 16px',
             textTransform: 'uppercase', letterSpacing: '.06em' }}>
-            {loading ? 'Loading...' : visible.length + ' restaurant' + (visible.length !== 1 ? 's' : '') + ' within ' + radius + ' miles of ' + search}
+            {loading
+            ? 'Searching...'
+            : restaurants.length === 0
+              ? 'No data — check your connection'
+              : visible.length + ' restaurant' + (visible.length !== 1 ? 's' : '') + ' within ' + radius + ' miles of ' + search}
           </div>
 
           {noResults && (
