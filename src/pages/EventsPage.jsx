@@ -5,6 +5,10 @@ import { useAuth } from '../hooks/useAuth'
 
 const font = { fontFamily: "'Montserrat', sans-serif" }
 
+// Module-level cache
+let cachedEvents = null
+let cachedRsvpCounts = {}
+
 const EVENT_TYPES = {
   family_night:    { label: 'Family Night',      icon: '🍽️', color: '#fff3ee', border: '#fdc9b0', text: '#c2410c' },
   cooking_class:   { label: 'Cooking Class',     icon: '👨‍🍳', color: '#e6f7f5', border: '#99ddd6', text: '#065f55' },
@@ -41,10 +45,10 @@ function getDaysUntil(dateStr) {
 
 export default function EventsPage() {
   const { user } = useAuth()
-  const [events, setEvents]       = useState([])
+  const [events, setEvents]       = useState(cachedEvents || [])
   const [myRsvps, setMyRsvps]     = useState(new Set())
-  const [rsvpCounts, setRsvpCounts] = useState({})
-  const [loading, setLoading]     = useState(true)
+  const [rsvpCounts, setRsvpCounts] = useState(cachedRsvpCounts || {})
+  const [loading, setLoading]     = useState(!cachedEvents)
   const [filter, setFilter]       = useState('all')
   const [toast, setToast]         = useState(null)
   const [rsvping, setRsvping]     = useState(null)
@@ -65,6 +69,7 @@ export default function EventsPage() {
       .gte('event_date', new Date().toISOString())
       .order('event_date')
 
+    cachedEvents = eventsData || []
     setEvents(eventsData || [])
 
     // Load RSVP counts
@@ -78,6 +83,7 @@ export default function EventsPage() {
       rsvpData.forEach(r => {
         counts[r.event_id] = (counts[r.event_id] || 0) + (r.party_size || 1)
       })
+      cachedRsvpCounts = counts
       setRsvpCounts(counts)
     }
 

@@ -5,6 +5,11 @@ import { useAuth } from '../hooks/useAuth'
 
 const font = { fontFamily: "'Montserrat', sans-serif" }
 
+// Module-level cache so profile survives navigation
+let cachedProfile = null
+let cachedHistory = []
+let cachedFavorites = []
+
 const TIERS = [
   { name: 'Sprout',   icon: '🌱', min: 0,    max: 99,   color: '#86efac', text: '#166534' },
   { name: 'Explorer', icon: '🗺️', min: 100,  max: 499,  color: '#93c5fd', text: '#1e40af' },
@@ -41,13 +46,13 @@ export default function ProfilePage() {
   const navigate = useNavigate()
   const fileRef  = useRef()
 
-  const [profile, setProfile]       = useState(null)
-  const [history, setHistory]       = useState([])
-  const [favorites, setFavorites]   = useState([])
+  const [profile, setProfile]       = useState(cachedProfile)
+  const [history, setHistory]       = useState(cachedHistory)
+  const [favorites, setFavorites]   = useState(cachedFavorites)
   const [uploading, setUploading]   = useState(false)
   const [editName, setEditName]     = useState(false)
   const [nameVal, setNameVal]       = useState('')
-  const [loading, setLoading]       = useState(true)
+  const [loading, setLoading]       = useState(!cachedProfile)
   const [activeTab, setActiveTab]   = useState('overview')
   const [showEditProfile, setShowEditProfile] = useState(false)
   const [editForm, setEditForm]     = useState({})
@@ -95,6 +100,9 @@ export default function ProfilePage() {
         profileData = newProfile
       }
 
+      cachedProfile   = profileData
+      cachedHistory   = histRes.data || []
+      cachedFavorites = favRes.data || []
       setProfile(profileData)
       setNameVal(profileData?.display_name || '')
       setHistory(histRes.data || [])
