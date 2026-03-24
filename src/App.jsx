@@ -13,6 +13,7 @@ import ResetPasswordPage   from './pages/ResetPasswordPage'
 import EventsPage          from './pages/EventsPage'
 import AdminPage           from './pages/AdminPage'
 import LeaderboardPage     from './pages/LeaderboardPage'
+import { trackPageView }    from './lib/analytics'
 
 const font = { fontFamily: "'Montserrat', sans-serif" }
 
@@ -29,6 +30,11 @@ function AuthRedirectHandler() {
 export default function App() {
   const { user, loading } = useAuth()
   const loc = useLocation()
+
+  // Track page views on route change
+  useEffect(() => {
+    trackPageView(loc.pathname)
+  }, [loc.pathname])
 
   if (loading) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center',

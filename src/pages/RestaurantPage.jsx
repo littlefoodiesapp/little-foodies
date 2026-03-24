@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
+import { track } from '../lib/analytics'
 
 const font = { fontFamily: "'Montserrat', sans-serif" }
 
@@ -104,6 +105,7 @@ export default function RestaurantPage() {
     setReviews(revData || [])
 
     setLoading(false)
+    if (r) track.viewRestaurant(r.name)
   }
 
   function showToast(msg, ok = true) {
@@ -328,6 +330,7 @@ export default function RestaurantPage() {
         <div style={{ marginTop: 14 }}>
           {restaurant.opentable_url ? (
             <a href={restaurant.opentable_url} target="_blank" rel="noopener noreferrer"
+              onClick={() => track.makeReservation(restaurant.name)}
               style={{ display: 'flex', alignItems: 'center', gap: 10,
                 padding: '11px 14px', background: '#DA3743',
                 borderRadius: 10, textDecoration: 'none',
