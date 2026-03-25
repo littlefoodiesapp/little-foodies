@@ -414,6 +414,53 @@ export default function ExplorePage() {
           )}
         </>
       )}
+
+      {/* How to use Little Foodies */}
+      <div style={{ margin: '32px 16px 16px', background: '#fff',
+        borderRadius: 20, border: '0.5px solid #e5e7eb', overflow: 'hidden' }}>
+        <div style={{ background: 'linear-gradient(135deg, #f57b46, #f46ab8)',
+          padding: '16px 20px' }}>
+          <div style={{ fontSize: 15, fontWeight: 800, color: '#fff',
+            fontFamily: "'IntroRust', 'Georgia', serif", marginBottom: 2 }}>
+            How to use Little Foodies
+          </div>
+          <div style={{ fontSize: 12, color: 'rgba(255,255,255,.85)' }}>
+            Your guide to finding the perfect family restaurant
+          </div>
+        </div>
+        <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {[
+            { icon: '🔍', title: 'Search your zip code', body: 'Enter your zip to find kid-friendly restaurants nearby. Adjust the radius to see more options.' },
+            { icon: '🪑', title: 'Check family amenities', body: 'Every restaurant shows community-verified info on high chairs, kids menus, changing tables, stroller access, and more.' },
+            { icon: '🍟', title: 'Browse the kids menu', body: 'Tap the kids menu tile on any restaurant to see photos of the kids menu so little ones can pick before you arrive.' },
+            { icon: '⚠️', title: 'Allergen info', body: 'Look for allergen badges like peanut-free and gluten-free options. Always confirm directly with the restaurant.', note: '* Community-reported, unverified until confirmed by the restaurant owner.' },
+            { icon: '❤️', title: 'Share with friends', body: 'Found a great spot? Tap Share on any restaurant page to send it to friends directly in the app.' },
+            { icon: '🏅', title: 'Earn points', body: 'Add restaurants (+50 pts), write reviews (+25 pts), vote on amenities (+5 pts), and climb the tiers from Sprout to Legend.' },
+          ].map(item => (
+            <div key={item.title} style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+              <div style={{ width: 40, height: 40, borderRadius: 12, background: '#f9fafb',
+                border: '0.5px solid #e5e7eb', display: 'flex', alignItems: 'center',
+                justifyContent: 'center', fontSize: 20, flexShrink: 0 }}>
+                {item.icon}
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#111827', marginBottom: 3 }}>
+                  {item.title}
+                </div>
+                <div style={{ fontSize: 12, color: '#6b7280', lineHeight: 1.6 }}>
+                  {item.body}
+                </div>
+                {item.note && (
+                  <div style={{ fontSize: 10, color: '#9ca3af', marginTop: 4, lineHeight: 1.5 }}>
+                    {item.note}
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
     </div>
   )
 }

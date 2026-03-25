@@ -1,6 +1,6 @@
 import { Routes, Route, Navigate, Link, useLocation } from 'react-router-dom'
 import { useAuth } from './hooks/useAuth'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { supabase } from './lib/supabase'
 import ExplorePage         from './pages/ExplorePage'
 import RestaurantPage      from './pages/RestaurantPage'
@@ -14,6 +14,7 @@ import EventsPage          from './pages/EventsPage'
 import AdminPage           from './pages/AdminPage'
 import FriendsPage         from './pages/FriendsPage'
 import { trackPageView }    from './lib/analytics'
+import OnboardingScreen      from './pages/OnboardingScreen'
 
 const font = { fontFamily: "'Montserrat', sans-serif" }
 
@@ -30,6 +31,14 @@ function AuthRedirectHandler() {
 export default function App() {
   const { user, loading } = useAuth()
   const loc = useLocation()
+  const [showOnboarding, setShowOnboarding] = useState(
+    !localStorage.getItem('lf_onboarding_done')
+  )
+
+  function completeOnboarding() {
+    localStorage.setItem('lf_onboarding_done', 'true')
+    setShowOnboarding(false)
+  }
 
   // Track page views on route change
   useEffect(() => {
@@ -46,6 +55,11 @@ export default function App() {
   )
 
   const hideNav = ['/login', '/reset-password', '/admin'].some(p => loc.pathname.startsWith(p))
+
+  // Show onboarding for brand new users
+  if (showOnboarding && !user) {
+    return <OnboardingScreen onComplete={completeOnboarding} />
+  }
 
   return (
     <div style={{ position: 'relative', minHeight: '100vh' }}>
