@@ -155,6 +155,21 @@ export default function AddRestaurantPage() {
     setError(null)
     try {
       const currentUser = user
+
+      // Check for duplicate restaurant by address
+      const { data: existing } = await supabase
+        .from('restaurants')
+        .select('id, name')
+        .ilike('address', form.address.trim())
+        .ilike('city', form.city.trim())
+        .maybeSingle()
+
+      if (existing) {
+        setError(`"${existing.name}" is already listed at this address. Search for it on the Explore page!`)
+        setLoading(false)
+        return
+      }
+
       const { data: newRestaurant, error: insertErr } = await supabase
         .from('restaurants')
         .insert({
@@ -166,25 +181,38 @@ export default function AddRestaurantPage() {
         })
         .select().single()
 
-      if (insertErr) throw new Error(insertErr.message)
+      if (insertErr) {
+        // Handle unique constraint violation gracefully
+        if (insertErr.message.includes('unique') || insertErr.code === '23505') {
+          setError('This restaurant already exists at that address.')
+        } else {
+          throw new Error(insertErr.message)
+        }
+        setLoading(false)
+        return
+      }
 
-      // Insert amenity votes
-      const amenityInserts = Object.entries(amenitySelections)
-        .filter(([, val]) => val !== 'unknown')
-        .map(([key, val]) => ({
-          id: crypto.randomUUID(), restaurant_id: newRestaurant.id,
-          amenity_key: key, yes_votes: val === 'yes' ? 1 : 0,
-          no_votes: val === 'no' ? 1 : 0, is_verified: false,
-        }))
-      if (amenityInserts.length > 0) {
-        await supabase.from('amenities').insert(amenityInserts)
-        const voteInserts = Object.entries(amenitySelections)
+      // Insert amenity votes — wrapped so failures don't block success
+      try {
+        const amenityInserts = Object.entries(amenitySelections)
           .filter(([, val]) => val !== 'unknown')
           .map(([key, val]) => ({
             id: crypto.randomUUID(), restaurant_id: newRestaurant.id,
-            amenity_key: key, user_id: currentUser?.id, vote: val,
+            amenity_key: key, yes_votes: val === 'yes' ? 1 : 0,
+            no_votes: val === 'no' ? 1 : 0, is_verified: false,
           }))
-        await supabase.from('amenity_votes').insert(voteInserts)
+        if (amenityInserts.length > 0) {
+          await supabase.from('amenities').insert(amenityInserts)
+          const voteInserts = Object.entries(amenitySelections)
+            .filter(([, val]) => val !== 'unknown')
+            .map(([key, val]) => ({
+              id: crypto.randomUUID(), restaurant_id: newRestaurant.id,
+              amenity_key: key, user_id: currentUser?.id, vote: val,
+            }))
+          await supabase.from('amenity_votes').insert(voteInserts)
+        }
+      } catch (amenityErr) {
+        console.error('Amenity insert failed (non-critical):', amenityErr)
       }
 
       // Award points — wrapped so failures don't block success screen
