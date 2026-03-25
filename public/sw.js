@@ -1,95 +1,26 @@
-// Little Foodies Service Worker
-// Version is injected at build time via index.html meta tag
-// Strategy: Network first for HTML, cache first for assets
+// Little Foodies Service Worker v3
+// Minimal SW - handles updates only, no fetch interception
 
-const CACHE_NAME = 'little-foodies-v2'
+const CACHE_NAME = 'little-foodies-v3'
 
-// Assets to pre-cache on install
-const PRECACHE_ASSETS = [
-  '/',
-  '/favicon.ico',
-  '/favicon-192x192.png',
-  '/favicon-512x512.png',
-  '/apple-touch-icon.png',
-  '/manifest.json',
-]
-
-// On install: pre-cache core assets
+// On install: skip waiting so new SW activates immediately
 self.addEventListener('install', event => {
-  // Skip waiting so new SW activates immediately
   self.skipWaiting()
-  event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => cache.addAll(PRECACHE_ASSETS))
-  )
 })
 
-// On activate: delete ALL old caches so users always get fresh code
+// On activate: clear all old caches and claim clients
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys().then(keys =>
-      Promise.all(
-        keys
-          .filter(key => key !== CACHE_NAME)
-          .map(key => caches.delete(key))
-      )
+      Promise.all(keys.map(key => caches.delete(key)))
     ).then(() => self.clients.claim())
   )
 })
 
-// Fetch strategy:
-// - HTML pages: network first, fall back to cache (ensures latest app code)
-// - JS/CSS/images: cache first, fall back to network (fast loads)
-// - Supabase / API calls: network only (never cache auth or data)
-self.addEventListener('fetch', event => {
-  const url = new URL(event.request.url)
+// No fetch handler — let all requests go straight to network
+// This avoids any SW interference with Supabase or page navigation
 
-  // Never intercept Supabase, Google APIs, analytics, or any non-same-origin request
-  if (
-    url.hostname.includes('supabase.co') ||
-    url.hostname.includes('googleapis.com') ||
-    url.hostname.includes('googletagmanager.com') ||
-    url.hostname.includes('workers.dev') ||
-    url.origin !== self.location.origin
-  ) {
-    event.respondWith(fetch(event.request))
-    return
-  }
-
-  // HTML pages — network first so users always get latest version
-  if (event.request.mode === 'navigate') {
-    event.respondWith(
-      fetch(event.request)
-        .then(response => {
-          // Cache the fresh HTML
-          const clone = response.clone()
-          caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone))
-          return response
-        })
-        .catch(() => caches.match(event.request))
-    )
-    return
-  }
-
-  // JS/CSS/fonts/images — cache first for performance
-  event.respondWith(
-    caches.match(event.request).then(cached => {
-      if (cached) return cached
-      return fetch(event.request).then(response => {
-        // Only cache successful responses
-        if (!response || response.status !== 200 || response.type !== 'basic') {
-          return response
-        }
-        const clone = response.clone()
-        caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone))
-        return response
-      })
-    })
-  )
-})
-
-// Listen for messages from the app
+// Listen for skipWaiting message
 self.addEventListener('message', event => {
-  if (event.data === 'skipWaiting') {
-    self.skipWaiting()
-  }
+  if (event.data === 'skipWaiting') self.skipWaiting()
 })
