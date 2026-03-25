@@ -187,19 +187,24 @@ export default function AddRestaurantPage() {
         await supabase.from('amenity_votes').insert(voteInserts)
       }
 
-      // Award points
+      // Award points — wrapped so failures don't block success screen
       if (currentUser) {
-        const amenityVoteCount = Object.values(amenitySelections).filter(v => v !== 'unknown').length
-        const totalPoints = 50 + (amenityVoteCount * 5)
-        await supabase.from('points_ledger').insert([
-          { id: crypto.randomUUID(), user_id: currentUser.id, action: 'add_restaurant', points: 50 },
-          ...Object.entries(amenitySelections).filter(([,v]) => v !== 'unknown').map(([key]) => ({
-            id: crypto.randomUUID(), user_id: currentUser.id, action: 'vote', points: 5
-          }))
-        ])
-        const { data: profile } = await supabase.from('profiles').select('points').eq('id', currentUser.id).single()
-        if (profile) {
-          await supabase.from('profiles').update({ points: (profile.points || 0) + totalPoints }).eq('id', currentUser.id)
+        try {
+          const amenityVoteCount = Object.values(amenitySelections).filter(v => v !== 'unknown').length
+          const totalPoints = 50 + (amenityVoteCount * 5)
+          const ledgerRows = [
+            { id: crypto.randomUUID(), user_id: currentUser.id, action: 'add_restaurant', points: 50 },
+            ...Object.entries(amenitySelections).filter(([,v]) => v !== 'unknown').map(([key]) => ({
+              id: crypto.randomUUID(), user_id: currentUser.id, action: 'vote', points: 5
+            }))
+          ]
+          await supabase.from('points_ledger').insert(ledgerRows)
+          const { data: profile } = await supabase.from('profiles').select('points').eq('id', currentUser.id).single()
+          if (profile) {
+            await supabase.from('profiles').update({ points: (profile.points || 0) + totalPoints }).eq('id', currentUser.id)
+          }
+        } catch (pointsErr) {
+          console.error('Points update failed (non-critical):', pointsErr)
         }
       }
       // Log activity for friends feed
@@ -548,7 +553,17 @@ export default function AddRestaurantPage() {
                 </div>
                 {form.phone && <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>{form.phone}</div>}
                 {form.website && <div style={{ fontSize: 12, color: '#0692e5', marginTop: 2 }}>{form.website}</div>}
-                {form.hours && <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>{form.hours}</div>}
+                {form.hours && (
+                  <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>
+                    {(() => {
+                      try {
+                        const h = JSON.parse(form.hours)
+                        const today = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][new Date().getDay()]
+                        return '🕐 Today: ' + (h[today] || h['Daily'] || Object.values(h)[0])
+                      } catch { return form.hours }
+                    })()}
+                  </div>
+                )}
               </div>
             </div>
 
