@@ -415,7 +415,8 @@ export default function ExplorePage() {
         </>
       )}
 
-      {/* How to use Little Foodies */}
+      {/* How to use Little Foodies — only show on home/unsearched state */}
+      {!hasSearched && (
       <div style={{ margin: '32px 16px 16px', background: '#fff',
         borderRadius: 20, border: '0.5px solid #e5e7eb', overflow: 'hidden' }}>
         <div style={{ background: 'linear-gradient(135deg, #f57b46, #f46ab8)',
@@ -460,6 +461,7 @@ export default function ExplorePage() {
           ))}
         </div>
       </div>
+      )}
 
     </div>
   )
