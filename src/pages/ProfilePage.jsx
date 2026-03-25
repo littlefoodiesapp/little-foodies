@@ -63,6 +63,11 @@ export default function ProfilePage() {
   const [sendingFeedback, setSendingFeedback] = useState(false)
 
   useEffect(() => {
+    // Always clear cache if profile is null so we always re-fetch
+    if (!cachedProfile) {
+      cachedHistory   = []
+      cachedFavorites = []
+    }
     // Clear stale cache on logout
     if (window.__lf_clear_profile_cache) {
       cachedProfile   = null
@@ -86,16 +91,21 @@ export default function ProfilePage() {
     // Safety timeout - never stay stuck loading more than 8 seconds
     const timeout = setTimeout(() => setLoading(false), 8000)
     try {
+      // Refresh session first to ensure auth token is valid on new domain
+      if (attempt === 1) {
+        await supabase.auth.getSession()
+      }
+
       // Fetch profile directly first — this is the most important query
       const { data: profileData, error: profileErr } = await supabase
         .from('profiles').select('*').eq('id', user.id).single()
 
-      if (profileErr) {
-        console.error('Profile fetch error (attempt ' + attempt + '):', profileErr.message, 'user.id:', user.id)
-        // Retry once after a short delay if first attempt fails
-        if (attempt === 1) {
+      if (profileErr || !profileData) {
+        console.error('Profile fetch error (attempt ' + attempt + '):', profileErr?.message, 'user.id:', user.id)
+        // Retry up to 3 times with increasing delays
+        if (attempt < 3) {
           clearTimeout(timeout)
-          setTimeout(() => loadAll(2), 1500)
+          setTimeout(() => loadAll(attempt + 1), attempt * 1500)
           return
         }
       }
