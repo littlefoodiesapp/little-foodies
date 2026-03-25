@@ -103,30 +103,41 @@ export default function FriendsPage() {
     setSearchError(null)
     setSearchResult(null)
 
-    const { data } = await supabase
+    const email = searchEmail.trim().toLowerCase()
+
+    // Search profiles by email (email column added via SQL)
+    const { data, error } = await supabase
       .from('profiles')
       .select('id, display_name, avatar_url, points')
-      .eq('id', (await supabase.auth.admin?.getUserByEmail?.(searchEmail.trim()))?.data?.user?.id || '00000000-0000-0000-0000-000000000000')
+      .ilike('email', email)
+      .neq('id', user.id)
       .single()
 
-    // Fallback: search via a function or by matching auth users
-    // Since we can't query auth.users directly, search profiles by display_name or look up via edge function
-    // Instead, we'll use a workaround: search display_name + show email match note
-    const { data: profileData } = await supabase
-      .from('profiles')
-      .select('id, display_name, avatar_url, points')
-      .neq('id', user.id)
-      .limit(50)
+    if (error || !data) {
+      setSearchError('No account found with that email address.')
+      setSearching(false)
+      return
+    }
 
-    // We need to match email - check if any existing friendship or use auth lookup
-    // Best approach: store email in profiles table or use a search endpoint
-    // For now, match via the auth user lookup through the Supabase admin
-    // Since we don't have admin access client-side, we'll look up by checking if
-    // the email matches any user in auth by triggering a magic link check
-    
-    // Practical solution: add email column to profiles on signup
-    // For now show a helpful message
-    setSearchError('To search by email, we need to add email to profiles. See note below.')
+    // Check if already friends or request pending
+    const { data: existing } = await supabase
+      .from('friendships')
+      .select('id, status')
+      .or(`and(requester_id.eq.${user.id},addressee_id.eq.${data.id}),and(requester_id.eq.${data.id},addressee_id.eq.${user.id})`)
+      .single()
+
+    if (existing?.status === 'accepted') {
+      setSearchError('You are already friends with this person!')
+      setSearching(false)
+      return
+    }
+    if (existing?.status === 'pending') {
+      setSearchError('A friend request with this person is already pending.')
+      setSearching(false)
+      return
+    }
+
+    setSearchResult(data)
     setSearching(false)
   }
 
@@ -517,21 +528,7 @@ export default function FriendsPage() {
               </div>
             )}
 
-            {/* Note about email search */}
-            <div style={{ background: '#fefae8', border: '0.5px solid #fde9a0', borderRadius: 12,
-              padding: '12px 14px', marginTop: 16 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: '#854d0e', marginBottom: 4 }}>
-                📧 One quick setup needed
-              </div>
-              <div style={{ fontSize: 11, color: '#92400e', lineHeight: 1.6 }}>
-                To search by email we need to store emails in the profiles table. Run this in Supabase SQL editor:
-              </div>
-              <div style={{ background: '#fff', borderRadius: 8, padding: '8px 10px', marginTop: 8,
-                fontSize: 10, color: '#374151', fontFamily: 'monospace', lineHeight: 1.8 }}>
-                ALTER TABLE profiles ADD COLUMN IF NOT EXISTS email text;<br/>
-                UPDATE profiles SET email = auth.users.email FROM auth.users WHERE profiles.id = auth.users.id;
-              </div>
-            </div>
+
           </>
         )}
       </div>

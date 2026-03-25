@@ -63,6 +63,7 @@ export function AuthProvider({ children }) {
           if (!existing) {
             await supabase.from('profiles').insert({
               id:           u.id,
+              email:        u.email || null,
               display_name: meta.display_name || meta.first_name || u.email?.split('@')[0],
               first_name:   meta.first_name || null,
               last_name:    meta.last_name  || null,
