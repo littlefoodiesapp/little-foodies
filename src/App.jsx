@@ -12,7 +12,7 @@ import InvitePage          from './pages/InvitePage'
 import ResetPasswordPage   from './pages/ResetPasswordPage'
 import EventsPage          from './pages/EventsPage'
 import AdminPage           from './pages/AdminPage'
-import LeaderboardPage     from './pages/LeaderboardPage'
+import FriendsPage         from './pages/FriendsPage'
 import { trackPageView }    from './lib/analytics'
 
 const font = { fontFamily: "'Montserrat', sans-serif" }
@@ -55,7 +55,7 @@ export default function App() {
           <Route path="/"                element={<ExplorePage />} />
           <Route path="/restaurant/:id"  element={<RestaurantPage />} />
           <Route path="/events"          element={<EventsPage />} />
-          <Route path="/leaderboard"     element={<LeaderboardPage />} />
+          <Route path="/friends"          element={<FriendsPage />} />
           <Route path="/admin"           element={user ? <AdminPage /> : <Navigate to="/login" />} />
           <Route path="/profile"         element={user ? <ProfilePage /> : <Navigate to="/login" />} />
           <Route path="/tiers"           element={user ? <TiersPage /> : <Navigate to="/login" />} />
@@ -105,13 +105,13 @@ export default function App() {
               }}>+</div>
               Add
             </Link>
-            <Link to="/leaderboard" style={{
+            <Link to="/friends" style={{
               flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',
               gap: 2, textDecoration: 'none', paddingBottom: 4,
-              color: loc.pathname === '/leaderboard' ? '#f57b46' : '#9ca3af',
+              color: loc.pathname === '/friends' ? '#f57b46' : '#9ca3af',
               fontSize: 10, fontWeight: 600, ...font
             }}>
-              <span style={{ fontSize: 20 }}>🏆</span>Leaders
+              <span style={{ fontSize: 20 }}>👥</span>Friends
             </Link>
             <Link to={user ? "/profile" : "/login"} style={{
               flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',
