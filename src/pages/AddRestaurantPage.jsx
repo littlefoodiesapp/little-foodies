@@ -209,10 +209,14 @@ export default function AddRestaurantPage() {
       }
       // Log activity for friends feed
       if (currentUser) {
-        await supabase.from('friend_activity').insert({
-          user_id: currentUser.id, activity_type: 'add_restaurant',
-          restaurant_id: newRestaurant?.id, restaurant_name: form.name, points: 50
-        }).catch(() => {})
+        try {
+          await supabase.from('friend_activity').insert({
+            user_id: currentUser.id, activity_type: 'add_restaurant',
+            restaurant_id: newRestaurant?.id, restaurant_name: form.name, points: 50
+          })
+        } catch (activityErr) {
+          console.error('Activity log failed (non-critical):', activityErr)
+        }
       }
       // Invalidate explore cache
       if (typeof window !== 'undefined') window.__lf_invalidate_restaurants = true
