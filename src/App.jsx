@@ -111,7 +111,7 @@ export default function App() {
               color: loc.pathname === '/friends' ? '#f57b46' : '#9ca3af',
               fontSize: 10, fontWeight: 600, ...font
             }}>
-              <span style={{ fontSize: 20 }}>👥</span>Friends
+              <span style={{ fontSize: 20 }}>❤️</span>Friends
             </Link>
             <Link to={user ? "/profile" : "/login"} style={{
               flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',
