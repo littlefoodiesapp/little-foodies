@@ -2,7 +2,7 @@
 // Version is injected at build time via index.html meta tag
 // Strategy: Network first for HTML, cache first for assets
 
-const CACHE_NAME = 'little-foodies-v1'
+const CACHE_NAME = 'little-foodies-v2'
 
 // Assets to pre-cache on install
 const PRECACHE_ASSETS = [
@@ -43,14 +43,16 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url)
 
-  // Never cache Supabase, Google APIs, or analytics
+  // Never intercept Supabase, Google APIs, analytics, or any non-same-origin request
   if (
     url.hostname.includes('supabase.co') ||
     url.hostname.includes('googleapis.com') ||
     url.hostname.includes('googletagmanager.com') ||
-    url.hostname.includes('workers.dev')
+    url.hostname.includes('workers.dev') ||
+    url.origin !== self.location.origin
   ) {
-    return // Let browser handle it normally
+    event.respondWith(fetch(event.request))
+    return
   }
 
   // HTML pages — network first so users always get latest version
