@@ -242,7 +242,7 @@ export default function RestaurantPage() {
         ? { ...a,
             yes_votes: a.yes_votes + (vote === 'yes' ? 1 : 0),
             no_votes:  a.no_votes  + (vote === 'no' ? 1 : 0),
-            is_verified: (a.yes_votes + a.no_votes + 1) >= 5 }
+            is_verified: (a.yes_votes + a.no_votes + 1) >= 3 }
         : a
     ))
     showToast('+5 pts! Thanks for voting 🙌')
@@ -262,7 +262,7 @@ export default function RestaurantPage() {
       await supabase.from('allergens').update({
         yes_votes: existing.yes_votes + (vote === 'yes' ? 1 : 0),
         no_votes:  existing.no_votes  + (vote === 'no' ? 1 : 0),
-        is_verified: (existing.yes_votes + existing.no_votes + 1) >= 5,
+        is_verified: (existing.yes_votes + existing.no_votes + 1) >= 3,
       }).eq('id', existing.id)
     } else {
       await supabase.from('allergens').insert({
@@ -564,38 +564,53 @@ export default function RestaurantPage() {
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           {AMENITIES.map(am => {
             const data       = amenityMap[am.id]
+            const totalVotes = data ? (data.yes_votes + data.no_votes) : 0
             const isVer      = data?.is_verified
             const likelyYes  = data && data.yes_votes >= data.no_votes
             const confirmed  = isVer && likelyYes
             const denied     = isVer && !likelyYes
+            const hasVotes   = totalVotes > 0
+            const THRESHOLD  = 3
             return (
               <div key={am.id}
                 onClick={am.id === 'kidsmenu' ? () => setShowKidsMenu(true) : undefined}
                 style={{ display: 'flex', flexDirection: 'column',
-                alignItems: 'center', gap: 5, minWidth: 60,
+                alignItems: 'center', gap: 4, minWidth: 60,
                 cursor: am.id === 'kidsmenu' ? 'pointer' : 'default' }}>
-                {am.id === 'kidsmenu' && (
+                {am.id === 'kidsmenu' && confirmed && (
                   <div style={{ fontSize: 8, color: '#f57b46', fontWeight: 700,
                     textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: -2 }}>
                     View menu
                   </div>
                 )}
                 <div style={{ width: 52, height: 52, borderRadius: 14,
-                  background: confirmed ? am.color : denied ? '#f3f4f6' : '#f9fafb',
-                  border: confirmed ? '1.5px solid ' + am.border : denied ? '1.5px solid #d1d5db' : '1.5px solid #e5e7eb',
+                  background: confirmed ? am.color : '#f3f4f6',
+                  border: confirmed ? '1.5px solid ' + am.border : '1.5px solid #e5e7eb',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   flexDirection: 'column', gap: 1,
-                  opacity: denied ? 0.5 : 1,
-                  filter: denied ? 'grayscale(60%)' : 'none' }}>
+                  filter: confirmed ? 'none' : 'grayscale(100%)',
+                  opacity: confirmed ? 1 : denied ? 0.4 : 0.5 }}>
                   <span style={{ fontSize: 20 }}>{am.icon}</span>
-                  <span style={{ fontSize: 11, fontWeight: 600,
-                    color: confirmed ? am.text : denied ? '#9ca3af' : '#d1d5db' }}>
-                    {confirmed ? '✓' : denied ? '✗' : '–'}
-                  </span>
+                  {confirmed && (
+                    <span style={{ fontSize: 11, fontWeight: 600, color: am.text }}>✓</span>
+                  )}
+                  {denied && (
+                    <span style={{ fontSize: 11, fontWeight: 600, color: '#9ca3af' }}>✗</span>
+                  )}
                 </div>
                 <span style={{ fontSize: 9, color: confirmed ? am.text : '#9ca3af',
-                  textAlign: 'center', lineHeight: 1.3, maxWidth: 60, fontWeight: confirmed ? 600 : 400 }}>
+                  textAlign: 'center', lineHeight: 1.3, maxWidth: 60,
+                  fontWeight: confirmed ? 600 : 400 }}>
                   {am.label}
+                </span>
+                {/* Vote count under each icon */}
+                <span style={{ fontSize: 8, color: confirmed ? '#00a994' : '#9ca3af',
+                  textAlign: 'center', fontWeight: confirmed ? 700 : 400 }}>
+                  {confirmed
+                    ? '✓ Verified'
+                    : hasVotes
+                      ? `${Math.min(totalVotes, THRESHOLD)}/${THRESHOLD} voted`
+                      : '0/3 voted'}
                 </span>
               </div>
             )
