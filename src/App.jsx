@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate, Link, useLocation } from 'react-router-dom'
+import { Routes, Route, Navigate, Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from './hooks/useAuth'
 import { useEffect, useState } from 'react'
 import { supabase } from './lib/supabase'
