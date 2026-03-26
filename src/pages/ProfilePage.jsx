@@ -469,7 +469,11 @@ export default function ProfilePage() {
           </button>
 
           {/* Sign out */}
-          <button onClick={async () => { await logout(); navigate('/') }}
+          <button onClick={async () => {
+              await logout()
+              // Force full page reload to clear all in-memory state
+              window.location.href = '/'
+            }}
             style={{ width: '100%', padding: '11px 0', background: '#fff',
               border: '1px solid #e5e7eb', borderRadius: 10, fontSize: 13,
               fontWeight: 600, color: '#6b7280', cursor: 'pointer', ...font,
