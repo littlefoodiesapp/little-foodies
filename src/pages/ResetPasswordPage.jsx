@@ -22,11 +22,11 @@ export default function ResetPasswordPage() {
   const [loading, setLoading]     = useState(false)
   const [error, setError]         = useState(null)
   const [success, setSuccess]     = useState(false)
-  const [validToken, setValidToken] = useState(false)
+  // If we're on this page, we got here via PASSWORD_RECOVERY event in App.jsx
+  // So we can show the form immediately. Also keep listener as fallback.
+  const [validToken, setValidToken] = useState(true)
 
   useEffect(() => {
-    // Supabase puts the recovery token in the URL hash
-    // onAuthStateChange fires with PASSWORD_RECOVERY event when the token is valid
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'PASSWORD_RECOVERY') {
         setValidToken(true)
@@ -79,15 +79,8 @@ export default function ResetPasswordPage() {
       {/* Header */}
       <div style={{ background: 'linear-gradient(135deg, #fde8dc 0%, #fde0f0 100%)',
         padding: '36px 24px 28px', textAlign: 'center' }}>
-        <div style={{ fontSize: 32, fontWeight: 900, letterSpacing: -1, marginBottom: 6 }}>
-          {'LITTLE'.split('').map((l, i) => (
-            <span key={i} style={{
-              background: ['#f46ab8','#f57b46','#00a994','#fbca3f','#0692e5','#f57b46'][i],
-              color: '#fff', padding: '4px 8px', borderRadius: 8, marginRight: 2
-            }}>{l}</span>
-          ))}
-        </div>
-        <div style={{ fontSize: 18, fontWeight: 700, color: '#f46ab8', marginBottom: 8 }}>Foodies</div>
+        <img src="/favicon-192x192.png" alt="Little Foodies"
+          style={{ height: 72, width: 'auto', marginBottom: 12 }} />
         <p style={{ margin: 0, fontSize: 13, color: '#c2410c', fontWeight: 500 }}>
           Because every family deserves a great meal out.
         </p>
