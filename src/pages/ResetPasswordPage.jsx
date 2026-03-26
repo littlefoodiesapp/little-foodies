@@ -22,6 +22,7 @@ export default function ResetPasswordPage() {
   const [loading, setLoading]     = useState(false)
   const [error, setError]         = useState(null)
   const [success, setSuccess]     = useState(false)
+
   // If we're on this page, we got here via PASSWORD_RECOVERY event in App.jsx
   // So we can show the form immediately. Also keep listener as fallback.
   const [validToken, setValidToken] = useState(true)
@@ -80,7 +81,7 @@ export default function ResetPasswordPage() {
       <div style={{ background: 'linear-gradient(135deg, #fde8dc 0%, #fde0f0 100%)',
         padding: '36px 24px 28px', textAlign: 'center' }}>
         <img src="/favicon-192x192.png" alt="Little Foodies"
-          style={{ height: 72, width: 'auto', marginBottom: 12 }} />
+          style={{ height: 80, width: 'auto', marginBottom: 12 }} />
         <p style={{ margin: 0, fontSize: 13, color: '#c2410c', fontWeight: 500 }}>
           Because every family deserves a great meal out.
         </p>
