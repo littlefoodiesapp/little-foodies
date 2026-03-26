@@ -20,14 +20,9 @@ const font = { fontFamily: "'Montserrat', sans-serif" }
 
 function AuthRedirectHandler() {
   const { setUser } = useAuth()
-  const navigate = useNavigate()
   useEffect(() => {
     supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN' && session) setUser(session.user)
-      if (event === 'PASSWORD_RECOVERY') {
-        // Redirect to reset page so user can set new password
-        navigate('/reset-password')
-      }
     })
   }, [])
   return null
@@ -36,6 +31,7 @@ function AuthRedirectHandler() {
 export default function App() {
   const { user, loading } = useAuth()
   const loc = useLocation()
+  const navigate = useNavigate()
   const [showOnboarding, setShowOnboarding] = useState(
     !localStorage.getItem('lf_onboarding_done')
   )
@@ -44,6 +40,16 @@ export default function App() {
     localStorage.setItem('lf_onboarding_done', 'true')
     setShowOnboarding(false)
   }
+
+  // Detect PASSWORD_RECOVERY event and redirect to reset page
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        navigate('/reset-password')
+      }
+    })
+    return () => subscription.unsubscribe()
+  }, [])
 
   // Track page views on route change
   useEffect(() => {
