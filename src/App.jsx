@@ -20,9 +20,14 @@ const font = { fontFamily: "'Montserrat', sans-serif" }
 
 function AuthRedirectHandler() {
   const { setUser } = useAuth()
+  const navigate = useNavigate()
   useEffect(() => {
     supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN' && session) setUser(session.user)
+      if (event === 'PASSWORD_RECOVERY') {
+        // Redirect to reset page so user can set new password
+        navigate('/reset-password')
+      }
     })
   }, [])
   return null
