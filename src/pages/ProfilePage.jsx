@@ -470,9 +470,9 @@ export default function ProfilePage() {
 
           {/* Sign out */}
           <button onClick={async () => {
-              await logout()
-              // Force full page reload to clear all in-memory state
-              window.location.href = '/'
+              try { await logout() } catch (e) { console.error('Logout error:', e) }
+              // Always redirect regardless of logout success
+              window.location.replace('/')
             }}
             style={{ width: '100%', padding: '11px 0', background: '#fff',
               border: '1px solid #e5e7eb', borderRadius: 10, fontSize: 13,
