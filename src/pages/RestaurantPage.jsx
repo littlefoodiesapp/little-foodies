@@ -6,6 +6,15 @@ import { track } from '../lib/analytics'
 
 const font = { fontFamily: "'Montserrat', sans-serif" }
 
+function formatName(profile) {
+  if (!profile) return 'Parent'
+  const first = profile.first_name || profile.display_name?.split(' ')[0] || ''
+  const last  = profile.last_name  || profile.display_name?.split(' ')[1] || ''
+  if (first && last) return `${first} ${last.charAt(0).toUpperCase()}.`
+  if (first) return first
+  return profile.display_name || 'Parent'
+}
+
 // Cache restaurant data so back navigation is instant
 const restaurantCache = {}
 
@@ -903,11 +912,11 @@ export default function RestaurantPage() {
                 <div style={{ width: 32, height: 32, borderRadius: '50%',
                   background: '#fff3ee', display: 'flex', alignItems: 'center',
                   justifyContent: 'center', fontSize: 14, fontWeight: 600, color: '#f57b46' }}>
-                  {(rev.profiles?.display_name || 'P').charAt(0).toUpperCase()}
+                  {formatName(rev.profiles).charAt(0).toUpperCase()}
                 </div>
                 <div>
                   <div style={{ fontSize: 12, fontWeight: 600, color: '#374151' }}>
-                    {rev.profiles?.display_name || 'Parent'}
+                    {formatName(rev.profiles)}
                   </div>
                   <div style={{ fontSize: 10, color: '#9ca3af' }}>
                     {new Date(rev.created_at).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' })}

@@ -180,7 +180,9 @@ export default function ProfilePage() {
 
   async function saveProfile() {
     const updates = {
-      display_name: (editForm.firstName + ' ' + editForm.lastName).trim(),
+      display_name: editForm.firstName && editForm.lastName
+        ? `${editForm.firstName} ${editForm.lastName.charAt(0).toUpperCase()}.`
+        : editForm.firstName || editForm.lastName || '',
       first_name:   editForm.firstName,
       last_name:    editForm.lastName,
       zip:          editForm.zip,
@@ -214,6 +216,16 @@ export default function ProfilePage() {
   const totalVotes = history.filter(h => h.action === 'vote').length
   const totalAdded = history.filter(h => h.action === 'add_restaurant').length
   const totalReviews = history.filter(h => h.action === 'review' || h.action === 'write_review').length
+
+  // Format name as "First L." for privacy
+  function formatName(p) {
+    if (!p) return 'Parent'
+    const first = p.first_name || p.display_name?.split(' ')[0] || ''
+    const last  = p.last_name  || p.display_name?.split(' ')[1] || ''
+    if (first && last) return `${first} ${last.charAt(0).toUpperCase()}.`
+    if (first) return first
+    return p.display_name || 'Parent'
+  }
 
   const tabs = [
     { id: 'overview',   label: 'Overview' },
@@ -274,7 +286,7 @@ export default function ProfilePage() {
             ) : (
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
                 <span style={{ fontSize: 18, fontWeight: 700, color: '#fff' }}>
-                  {profile?.display_name || 'Parent'}
+                  {formatName(profile)}
                 </span>
                 <button onClick={() => setEditName(true)}
                   style={{ background: 'rgba(255,255,255,.2)', border: 'none',
