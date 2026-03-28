@@ -734,72 +734,91 @@ export default function RestaurantPage() {
       </div>
 
       {/* Amenity voting — only show if NOT verified */}
-      {!isVerified && (
-        <div style={{ padding: '14px 16px 0' }}>
-          <div style={{ fontSize: 11, fontWeight: 600, color: '#374151',
-            textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4 }}>
-            Help verify amenities · earn 5 pts
-          </div>
-          <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 10 }}>
-            1 vote = verified ✓ · Help verify this restaurant's amenities!
-          </div>
-          {AMENITIES.map(am => {
-            const data  = amenityMap[am.id] || { yes_votes: 0, no_votes: 0 }
-            const total = data.yes_votes + data.no_votes
-            const isVerified = total >= 1 && data.yes_votes >= data.no_votes
-            const myV   = myVotes[am.id]
-            const pct   = total > 0 ? Math.round((data.yes_votes / total) * 100) : 0
-            return (
-              <div key={am.id} style={{ background: '#f9fafb', borderRadius: 12,
-                padding: '12px 14px', marginBottom: 8 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                  <span style={{ fontSize: 18 }}>{am.icon}</span>
-                  <span style={{ fontSize: 13, fontWeight: 600, flex: 1 }}>{am.label}</span>
-                  {data.is_verified && (
-                    <span style={{ fontSize: 10, background: '#e6f7f5', color: '#065f55',
-                      border: '0.5px solid #99ddd6', padding: '1px 7px',
-                      borderRadius: 20, fontWeight: 600 }}>✓ Verified</span>
-                  )}
-                  {total > 0 && <span style={{ fontSize: 11, color: '#9ca3af' }}>{total} votes</span>}
-                  {user && (
-                    <button onClick={() => { setReportAmenity(am); setShowReportModal(true) }}
-                      style={{ background: 'none', border: 'none', fontSize: 10,
-                        color: '#9ca3af', cursor: 'pointer', padding: '2px 4px',
-                        fontWeight: 500, ...font, textDecoration: 'underline' }}>
-                      🚩 Report
-                    </button>
+      {(() => {
+        const hasUnvoted = AMENITIES.some(am => {
+          const data = amenityMap[am.id]
+          return !data || (data.yes_votes + data.no_votes) === 0
+        })
+        if (!hasUnvoted) return null
+        return (
+          <div style={{ padding: '14px 16px 0' }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: '#374151',
+              textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4 }}>
+              Help verify amenities · earn 5 pts
+            </div>
+            <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 10 }}>
+              1 vote = verified ✓ · Help verify this restaurant's amenities!
+            </div>
+            {AMENITIES.map(am => {
+              const data  = amenityMap[am.id] || { yes_votes: 0, no_votes: 0 }
+              const total = data.yes_votes + data.no_votes
+              const voted = total >= 1  // locked once anyone has voted
+              const likedYes = data.yes_votes >= data.no_votes && data.yes_votes > 0
+              const pct   = total > 0 ? Math.round((data.yes_votes / total) * 100) : 0
+
+              // Already voted — show locked result
+              if (voted) {
+                return (
+                  <div key={am.id} style={{ background: '#f9fafb', borderRadius: 12,
+                    padding: '12px 14px', marginBottom: 8 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontSize: 18 }}>{am.icon}</span>
+                      <span style={{ fontSize: 13, fontWeight: 600, flex: 1 }}>{am.label}</span>
+                      <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 20,
+                        fontWeight: 600,
+                        background: likedYes ? '#e6f7f5' : '#fef2f2',
+                        color: likedYes ? '#065f55' : '#dc2626',
+                        border: likedYes ? '0.5px solid #99ddd6' : '0.5px solid #fecaca' }}>
+                        {likedYes ? '✓ Yes' : '✗ No'} · {total} vote{total !== 1 ? 's' : ''}
+                      </span>
+                      {user && (
+                        <button onClick={() => { setReportAmenity(am); setShowReportModal(true) }}
+                          style={{ background: 'none', border: 'none', fontSize: 10,
+                            color: '#9ca3af', cursor: 'pointer', padding: '2px 4px',
+                            fontWeight: 500, ...font, textDecoration: 'underline' }}>
+                          🚩 Report
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )
+              }
+
+              // Not yet voted — show Yes/No buttons
+              return (
+                <div key={am.id} style={{ background: '#f9fafb', borderRadius: 12,
+                  padding: '12px 14px', marginBottom: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                    <span style={{ fontSize: 18 }}>{am.icon}</span>
+                    <span style={{ fontSize: 13, fontWeight: 600, flex: 1 }}>{am.label}</span>
+                    <span style={{ fontSize: 10, color: '#9ca3af' }}>Not yet confirmed</span>
+                  </div>
+                  {user ? (
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button onClick={() => castVote(am.id, 'yes')}
+                        style={{ flex: 1, padding: '8px 0', borderRadius: 8, fontSize: 12,
+                          fontWeight: 600, cursor: 'pointer', background: '#e6f7f5',
+                          color: '#065f55', border: '1.5px solid #99ddd6', ...font }}>
+                        Yes ✓
+                      </button>
+                      <button onClick={() => castVote(am.id, 'no')}
+                        style={{ flex: 1, padding: '8px 0', borderRadius: 8, fontSize: 12,
+                          fontWeight: 600, cursor: 'pointer', background: '#fef0f8',
+                          color: '#9d1479', border: '1.5px solid #f9b8e0', ...font }}>
+                        No ✕
+                      </button>
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: 11, color: '#9ca3af' }}>
+                      <a href="/login" style={{ color: '#f57b46', fontWeight: 600 }}>Sign in</a> to vote
+                    </div>
                   )}
                 </div>
-                {total > 0 && (
-                  <div style={{ height: 4, background: '#e5e7eb', borderRadius: 2,
-                    overflow: 'hidden', marginBottom: 8 }}>
-                    <div style={{ height: '100%', width: pct + '%',
-                      background: '#00a994', borderRadius: 2, transition: 'width .4s' }} />
-                  </div>
-                )}
-                {myV ? (
-                  <div style={{ fontSize: 12, color: '#00a994', fontWeight: 600 }}>✓ You voted {myV}</div>
-                ) : (
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <button onClick={() => castVote(am.id, 'yes')}
-                      style={{ flex: 1, padding: '8px 0', borderRadius: 8, fontSize: 12,
-                        fontWeight: 600, cursor: 'pointer', background: '#e6f7f5',
-                        color: '#065f55', border: '1.5px solid #99ddd6', ...font }}>
-                      Yes ✓
-                    </button>
-                    <button onClick={() => castVote(am.id, 'no')}
-                      style={{ flex: 1, padding: '8px 0', borderRadius: 8, fontSize: 12,
-                        fontWeight: 600, cursor: 'pointer', background: '#fef0f8',
-                        color: '#9d1479', border: '1.5px solid #f9b8e0', ...font }}>
-                      No ✕
-                    </button>
-                  </div>
-                )}
-              </div>
-            )
-          })}
-        </div>
-      )}
+              )
+            })}
+          </div>
+        )
+      })()}
 
       {/* Reviews */}
       <div style={{ padding: '14px 16px 0' }}>
