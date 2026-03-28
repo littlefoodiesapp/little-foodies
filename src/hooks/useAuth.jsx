@@ -16,12 +16,38 @@ export function AuthProvider({ children }) {
     if (initialized.current) return
     initialized.current = true
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       const u = session?.user ?? null
       const confirmed = u?.email_confirmed_at ? u : null
       cachedUser = confirmed
       setUser(confirmed)
       setLoading(false)
+
+      // Ensure profile exists on every session restore
+      if (confirmed) {
+        const { data: existing } = await supabase
+          .from('profiles').select('id, display_name').eq('id', confirmed.id).single()
+        if (!existing) {
+          // Profile missing — create it now
+          const meta = confirmed.user_metadata || {}
+          await supabase.from('profiles').insert({
+            id:           confirmed.id,
+            email:        confirmed.email || null,
+            display_name: meta.display_name || meta.first_name || confirmed.email?.split('@')[0],
+            first_name:   meta.first_name || null,
+            last_name:    meta.last_name  || null,
+            account_type: meta.account_type || 'family',
+            points:       0,
+          }).catch(() => {})
+        } else if (!existing.display_name) {
+          // Profile exists but display_name is blank — fix it
+          const meta = confirmed.user_metadata || {}
+          await supabase.from('profiles').update({
+            display_name: meta.display_name || meta.first_name || confirmed.email?.split('@')[0],
+            email: confirmed.email || null,
+          }).eq('id', confirmed.id).catch(() => {})
+        }
+      }
     })
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
