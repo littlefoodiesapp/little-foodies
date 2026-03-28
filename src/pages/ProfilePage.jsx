@@ -5,10 +5,7 @@ import { useAuth } from '../hooks/useAuth'
 
 const font = { fontFamily: "'Montserrat', sans-serif" }
 
-// Module-level cache so profile survives navigation
-let cachedProfile = null
-let cachedHistory = []
-let cachedFavorites = []
+// No module-level cache - always fetch fresh to avoid stale null issues
 
 const TIERS = [
   { name: 'Sprout',   icon: '🌱', min: 0,    max: 99,   color: '#86efac', text: '#166534' },
@@ -46,13 +43,13 @@ export default function ProfilePage() {
   const navigate = useNavigate()
   const fileRef  = useRef()
 
-  const [profile, setProfile]       = useState(cachedProfile)
-  const [history, setHistory]       = useState(cachedHistory)
-  const [favorites, setFavorites]   = useState(cachedFavorites)
+  const [profile, setProfile]       = useState(null)
+  const [history, setHistory]       = useState([])
+  const [favorites, setFavorites]   = useState([])
   const [uploading, setUploading]   = useState(false)
   const [editName, setEditName]     = useState(false)
   const [nameVal, setNameVal]       = useState('')
-  const [loading, setLoading]       = useState(!cachedProfile)
+  const [loading, setLoading]       = useState(true)
   const [activeTab, setActiveTab]   = useState('overview')
   const [showEditProfile, setShowEditProfile] = useState(false)
   const [editForm, setEditForm]     = useState({})
@@ -63,23 +60,13 @@ export default function ProfilePage() {
   const [sendingFeedback, setSendingFeedback] = useState(false)
 
   useEffect(() => {
-    // Always clear cache if profile is null so we always re-fetch
-    if (!cachedProfile) {
-      cachedHistory   = []
-      cachedFavorites = []
-    }
-    // Clear stale cache on logout
     if (window.__lf_clear_profile_cache) {
-      cachedProfile   = null
-      cachedHistory   = []
-      cachedFavorites = []
       window.__lf_clear_profile_cache = false
     }
     if (user) {
       setLoading(true)
       loadAll()
     } else {
-      // Not logged in — reset local state too
       setProfile(null)
       setHistory([])
       setFavorites([])
@@ -141,9 +128,6 @@ export default function ProfilePage() {
           .then(r => r).catch(() => ({ data: [] })),
       ])
 
-      cachedProfile   = profileData
-      cachedHistory   = histRes.data || []
-      cachedFavorites = favRes.data || []
       setProfile(profileData)
       setNameVal(profileData?.display_name || '')
       setHistory(histRes.data || [])
