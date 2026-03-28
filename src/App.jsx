@@ -13,6 +13,7 @@ import ResetPasswordPage   from './pages/ResetPasswordPage'
 import EventsPage          from './pages/EventsPage'
 import AdminPage           from './pages/AdminPage'
 import FriendsPage         from './pages/FriendsPage'
+import FriendProfilePage    from './pages/FriendProfilePage'
 import { trackPageView }    from './lib/analytics'
 import OnboardingScreen      from './pages/OnboardingScreen'
 
@@ -81,6 +82,7 @@ export default function App() {
           <Route path="/restaurant/:id"  element={<RestaurantPage />} />
           <Route path="/events"          element={<EventsPage />} />
           <Route path="/friends"          element={<FriendsPage />} />
+          <Route path="/friends/:friendId"  element={<FriendProfilePage />} />
           <Route path="/admin"           element={user ? <AdminPage /> : <Navigate to="/login" />} />
           <Route path="/profile"         element={user ? <ProfilePage /> : <Navigate to="/login" />} />
           <Route path="/tiers"           element={user ? <TiersPage /> : <Navigate to="/login" />} />

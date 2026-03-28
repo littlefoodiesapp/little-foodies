@@ -102,11 +102,30 @@ export default function ProfilePage() {
 
       if (profileErr || !profileData) {
         console.error('Profile fetch error (attempt ' + attempt + '):', profileErr?.message, 'user.id:', user.id)
-        // Retry up to 3 times with increasing delays
         if (attempt < 3) {
+          // Force a fresh session token before retrying
+          await supabase.auth.refreshSession()
           clearTimeout(timeout)
           setTimeout(() => loadAll(attempt + 1), attempt * 1500)
           return
+        }
+        // All retries failed - create a minimal profile from auth user data
+        // so we never show "Parent"
+        const { data: { user: authUser } } = await supabase.auth.getUser()
+        if (authUser) {
+          const fallbackProfile = {
+            id: authUser.id,
+            email: authUser.email,
+            display_name: authUser.user_metadata?.display_name || 
+                         authUser.user_metadata?.first_name ||
+                         authUser.email?.split('@')[0] || 'User',
+            points: 0,
+            account_type: 'family',
+          }
+          // Try to upsert this profile so future loads work
+          await supabase.from('profiles').upsert(fallbackProfile, { onConflict: 'id' }).catch(() => {})
+          setProfile(fallbackProfile)
+          setNameVal(fallbackProfile.display_name)
         }
       }
 

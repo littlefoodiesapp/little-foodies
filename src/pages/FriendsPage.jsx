@@ -400,7 +400,8 @@ export default function FriendsPage() {
                       return (
                         <div key={f.id} style={{ display: 'flex', alignItems: 'center', gap: 10,
                           background: '#fff', border: '0.5px solid #e5e7eb', borderRadius: 12,
-                          padding: '12px 14px', marginBottom: 8 }}>
+                          padding: '12px 14px', marginBottom: 8, cursor: 'pointer' }}
+                          onClick={() => navigate(`/friends/${friend?.id}`)}>
                           <div style={{ width: 42, height: 42, borderRadius: '50%', background: '#fff3ee',
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
                             fontSize: 18, fontWeight: 700, color: '#f57b46', overflow: 'hidden', flexShrink: 0 }}>
@@ -413,15 +414,18 @@ export default function FriendsPage() {
                               {friend?.display_name}
                             </div>
                             <div style={{ fontSize: 11, color: '#9ca3af' }}>
-                              🏅 {friend?.points || 0} pts
+                              🏅 {friend?.points || 0} pts · Tap to view profile
                             </div>
                           </div>
-                          <button onClick={() => removeFriend(f.id)}
-                            style={{ padding: '6px 12px', background: '#f3f4f6', border: 'none',
-                              borderRadius: 8, fontSize: 11, fontWeight: 600, color: '#9ca3af',
-                              cursor: 'pointer', ...font }}>
-                            Remove
-                          </button>
+                          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                            <button onClick={e => { e.stopPropagation(); removeFriend(f.id) }}
+                              style={{ padding: '6px 12px', background: '#f3f4f6', border: 'none',
+                                borderRadius: 8, fontSize: 11, fontWeight: 600, color: '#9ca3af',
+                                cursor: 'pointer', ...font }}>
+                              Remove
+                            </button>
+                            <span style={{ color: '#9ca3af', fontSize: 16 }}>›</span>
+                          </div>
                         </div>
                       )
                     })}
