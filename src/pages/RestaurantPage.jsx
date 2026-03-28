@@ -649,7 +649,7 @@ export default function RestaurantPage() {
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   flexDirection: 'column', gap: 1,
                   filter: confirmed ? 'none' : 'grayscale(100%)',
-                  opacity: confirmed ? 1 : denied ? 0.4 : 0.5 }}>
+                  opacity: confirmed ? 1 : denied ? 0.35 : 0.45 }}>
                   <span style={{ fontSize: 20 }}>{am.icon}</span>
                   {confirmed && (
                     <span style={{ fontSize: 11, fontWeight: 600, color: am.text }}>✓</span>
@@ -666,12 +666,23 @@ export default function RestaurantPage() {
                 {/* Vote count under each icon */}
                 <span style={{ fontSize: 8, color: confirmed ? '#00a994' : '#9ca3af',
                   textAlign: 'center', fontWeight: confirmed ? 700 : 400 }}>
-                  {confirmed ? '✓ Verified' : hasVotes ? `${totalVotes}/1 voted` : '0/1 voted'}
+                  {confirmed ? '✓ Verified' : denied ? '✗ Not here' : hasVotes ? 'Voted' : '0/1 voted'}
                 </span>
               </div>
             )
           })}
         </div>
+        {/* Always-visible report link */}
+        {user && (
+          <div style={{ marginTop: 10, textAlign: 'right' }}>
+            <button onClick={() => { setReportAmenity(null); setShowReportModal(true) }}
+              style={{ background: 'none', border: 'none', fontSize: 11,
+                color: '#9ca3af', cursor: 'pointer', fontWeight: 500,
+                ...font, textDecoration: 'underline' }}>
+              🚩 Report an inaccuracy
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Noise level */}
@@ -1040,13 +1051,14 @@ export default function RestaurantPage() {
                 style={{ background: '#f3f4f6', border: 'none', borderRadius: '50%',
                   width: 32, height: 32, cursor: 'pointer', fontSize: 16 }}>✕</button>
             </div>
-            {reportAmenity && (
-              <div style={{ fontSize: 13, color: '#6b7280', marginBottom: 16 }}>
-                Reporting: <span style={{ fontWeight: 600, color: '#374151' }}>
-                  {reportAmenity.icon} {reportAmenity.label}
-                </span> at {restaurant?.name}
-              </div>
-            )}
+            <div style={{ fontSize: 13, color: '#6b7280', marginBottom: 16 }}>
+              {reportAmenity
+                ? <>Reporting: <span style={{ fontWeight: 600, color: '#374151' }}>
+                    {reportAmenity.icon} {reportAmenity.label}
+                  </span> at {restaurant?.name}</>
+                : <>Reporting an inaccuracy at <span style={{ fontWeight: 600, color: '#374151' }}>{restaurant?.name}</span></>
+              }
+            </div>
             <div style={{ fontSize: 11, fontWeight: 600, color: '#374151',
               textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 8 }}>
               Reason
