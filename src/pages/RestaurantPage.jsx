@@ -603,12 +603,12 @@ export default function RestaurantPage() {
           {AMENITIES.map(am => {
             const data       = amenityMap[am.id]
             const totalVotes = data ? (data.yes_votes + data.no_votes) : 0
-            const isVer      = data?.is_verified
-            const likelyYes  = data && data.yes_votes >= data.no_votes
+            // Calculate verified client-side (threshold = 1 vote)
+            const isVer      = totalVotes >= 1
+            const likelyYes  = data && data.yes_votes >= data.no_votes && data.yes_votes > 0
             const confirmed  = isVer && likelyYes
             const denied     = isVer && !likelyYes
             const hasVotes   = totalVotes > 0
-            const THRESHOLD  = 1
             return (
               <div key={am.id}
                 onClick={am.id === 'kidsmenu' ? () => setShowKidsMenu(true) : undefined}
@@ -644,11 +644,7 @@ export default function RestaurantPage() {
                 {/* Vote count under each icon */}
                 <span style={{ fontSize: 8, color: confirmed ? '#00a994' : '#9ca3af',
                   textAlign: 'center', fontWeight: confirmed ? 700 : 400 }}>
-                  {confirmed
-                    ? '✓ Verified'
-                    : hasVotes
-                      ? totalVotes > 0 ? '✓ Verified' : '0/1 voted'
-                      : '0/3 voted'}
+                  {confirmed ? '✓ Verified' : hasVotes ? `${totalVotes}/1 voted` : '0/1 voted'}
                 </span>
               </div>
             )
@@ -726,8 +722,9 @@ export default function RestaurantPage() {
             1 vote = verified ✓ · Help verify this restaurant's amenities!
           </div>
           {AMENITIES.map(am => {
-            const data  = amenityMap[am.id] || { yes_votes: 0, no_votes: 0, is_verified: false }
+            const data  = amenityMap[am.id] || { yes_votes: 0, no_votes: 0 }
             const total = data.yes_votes + data.no_votes
+            const isVerified = total >= 1 && data.yes_votes >= data.no_votes
             const myV   = myVotes[am.id]
             const pct   = total > 0 ? Math.round((data.yes_votes / total) * 100) : 0
             return (
