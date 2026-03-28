@@ -1051,14 +1051,48 @@ export default function RestaurantPage() {
                 style={{ background: '#f3f4f6', border: 'none', borderRadius: '50%',
                   width: 32, height: 32, cursor: 'pointer', fontSize: 16 }}>✕</button>
             </div>
-            <div style={{ fontSize: 13, color: '#6b7280', marginBottom: 16 }}>
-              {reportAmenity
-                ? <>Reporting: <span style={{ fontWeight: 600, color: '#374151' }}>
-                    {reportAmenity.icon} {reportAmenity.label}
-                  </span> at {restaurant?.name}</>
-                : <>Reporting an inaccuracy at <span style={{ fontWeight: 600, color: '#374151' }}>{restaurant?.name}</span></>
-              }
-            </div>
+            {/* Amenity picker — shown when opened from general report button */}
+            {!reportAmenity ? (
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: '#374151',
+                  textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 8 }}>
+                  Which amenity?
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 4 }}>
+                  {AMENITIES.map(am => (
+                    <button key={am.id} onClick={() => setReportAmenity(am)}
+                      style={{ padding: '7px 12px', borderRadius: 20, fontSize: 12,
+                        border: '1.5px solid #e5e7eb', background: '#f9fafb',
+                        cursor: 'pointer', fontFamily: "'Montserrat', sans-serif",
+                        fontWeight: 500, color: '#374151',
+                        display: 'flex', alignItems: 'center', gap: 5 }}>
+                      {am.icon} {am.label}
+                    </button>
+                  ))}
+                  <button onClick={() => setReportAmenity({ id: 'other', icon: '📝', label: 'Other' })}
+                    style={{ padding: '7px 12px', borderRadius: 20, fontSize: 12,
+                      border: '1.5px solid #e5e7eb', background: '#f9fafb',
+                      cursor: 'pointer', fontFamily: "'Montserrat', sans-serif",
+                      fontWeight: 500, color: '#374151' }}>
+                    📝 Other
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div style={{ fontSize: 13, color: '#6b7280', marginBottom: 16, 
+                display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 20 }}>{reportAmenity.icon}</span>
+                <span>Reporting <span style={{ fontWeight: 600, color: '#374151' }}>
+                  {reportAmenity.label}</span> at {restaurant?.name}
+                </span>
+                <button onClick={() => setReportAmenity(null)}
+                  style={{ background: 'none', border: 'none', color: '#9ca3af',
+                    cursor: 'pointer', fontSize: 11, textDecoration: 'underline',
+                    fontFamily: "'Montserrat', sans-serif", marginLeft: 4 }}>
+                  change
+                </button>
+              </div>
+            )}
             <div style={{ fontSize: 11, fontWeight: 600, color: '#374151',
               textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 8 }}>
               Reason
@@ -1092,7 +1126,7 @@ export default function RestaurantPage() {
                 boxSizing: 'border-box', fontFamily: "'Montserrat', sans-serif",
                 background: '#fafafa', marginBottom: 14 }}
             />
-            <button onClick={submitReport} disabled={!reportReason || submittingReport}
+            <button onClick={submitReport} disabled={!reportReason || !reportAmenity || submittingReport}
               style={{ width: '100%', padding: '13px 0', background: '#f57b46', border: 'none',
                 borderRadius: 12, color: '#fff', fontSize: 14, fontWeight: 600,
                 cursor: !reportReason || submittingReport ? 'not-allowed' : 'pointer',
