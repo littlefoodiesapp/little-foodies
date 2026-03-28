@@ -103,18 +103,26 @@ export function AuthProvider({ children }) {
       }
     )
 
-    // When app comes back from background, silently refresh session
-    // without showing any loading spinners
+    // Only refresh session if tab was hidden for more than 10 minutes
+    // This prevents unnecessary re-renders on quick tab switches
+    let hiddenAt = null
     function handleVisibilityChange() {
-      if (document.visibilityState === 'visible' && cachedUser !== undefined) {
-        supabase.auth.getSession().then(({ data: { session } }) => {
-          const u = session?.user ?? null
-          const confirmed = u?.email_confirmed_at ? u : null
-          if (confirmed?.id !== cachedUser?.id) {
-            cachedUser = confirmed
-            setUser(confirmed)
-          }
-        })
+      if (document.visibilityState === 'hidden') {
+        hiddenAt = Date.now()
+      } else if (document.visibilityState === 'visible' && cachedUser !== undefined) {
+        const hiddenMs = hiddenAt ? Date.now() - hiddenAt : 0
+        if (hiddenMs > 10 * 60 * 1000) {
+          // Only refresh session after 10+ minutes in background
+          supabase.auth.getSession().then(({ data: { session } }) => {
+            const u = session?.user ?? null
+            const confirmed = u?.email_confirmed_at ? u : null
+            if (confirmed?.id !== cachedUser?.id) {
+              cachedUser = confirmed
+              setUser(confirmed)
+            }
+          })
+        }
+        hiddenAt = null
       }
     }
     document.addEventListener('visibilitychange', handleVisibilityChange)

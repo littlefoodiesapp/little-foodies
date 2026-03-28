@@ -83,106 +83,95 @@ export default function RestaurantPage() {
   useEffect(() => { loadAll() }, [id])
 
   async function loadAll() {
-    const { data: r } = await supabase
-      .from('restaurants')
-      .select('*, amenities(*)')
-      .eq('id', id)
-      .single()
+    // Check module-level cache first
+    const cached = restaurantCache[id]
+    if (cached) {
+      setRestaurant(cached.restaurant)
+      setAmenities(cached.amenities)
+      setPhotos(cached.photos)
+      setNoiseVotes(cached.noiseVotes)
+      setReviews(cached.reviews)
+      setAllergens(cached.allergens || [])
+      setKidsMenuPhotos(cached.kidsMenuPhotos || [])
+      setLoading(false)
+      // Still fetch user-specific data fresh
+      if (user) loadUserData()
+      return
+    }
+
+    // Run ALL non-user queries in parallel
+    const [rRes, pRes, nRes, revRes, aRes, kmRes] = await Promise.all([
+      supabase.from('restaurants').select('*, amenities(*)').eq('id', id).single(),
+      supabase.from('restaurant_photos').select('*').eq('restaurant_id', id).order('created_at').limit(3),
+      supabase.from('noise_votes').select('score, user_id').eq('restaurant_id', id),
+      supabase.from('reviews').select('*, profiles(display_name)').eq('restaurant_id', id).order('created_at', { ascending: false }),
+      supabase.from('allergens').select('*').eq('restaurant_id', id),
+      supabase.from('kids_menu_photos').select('*').eq('restaurant_id', id).order('created_at'),
+    ])
+
+    const r      = rRes.data
+    const pData  = pRes.data  || []
+    const nData  = nRes.data  || []
+    const revData = revRes.data || []
+    const aData  = aRes.data  || []
+    const kmData = kmRes.data || []
+
+    // Process noise votes
+    const noiseCounts = { 1:0, 2:0, 3:0, 4:0, 5:0 }
+    nData.forEach(v => { noiseCounts[v.score] = (noiseCounts[v.score]||0) + 1 })
+    if (user) {
+      const mine = nData.find(v => v.user_id === user.id)
+      if (mine) { setSavedNoise(mine.score); setSelectedNoise(mine.score) }
+    }
+
+    // Set all state at once
     setRestaurant(r)
     setAmenities(r?.amenities || [])
+    setPhotos(pData)
+    setNoiseVotes(noiseCounts)
+    setReviews(revData)
+    setAllergens(aData)
+    setKidsMenuPhotos(kmData)
+    setLoading(false)
 
-    const { data: pData } = await supabase
-      .from('restaurant_photos')
-      .select('*')
-      .eq('restaurant_id', id)
-      .order('created_at').limit(3)
-    setPhotos(pData || [])
+    if (r) track.viewRestaurant(r.name)
 
-    const { data: nData } = await supabase
-      .from('noise_votes')
-      .select('score, user_id')
-      .eq('restaurant_id', id)
-    if (nData) {
-      const counts = { 1:0, 2:0, 3:0, 4:0, 5:0 }
-      nData.forEach(v => { counts[v.score] = (counts[v.score]||0) + 1 })
-      setNoiseVotes(counts)
-      if (user) {
-        const mine = nData.find(v => v.user_id === user.id)
-        if (mine) { setSavedNoise(mine.score); setSelectedNoise(mine.score) }
-      }
-    }
-
-    // Load my amenity votes
-    if (user) {
-      const { data: vData } = await supabase
-        .from('amenity_votes')
-        .select('amenity_key, vote')
-        .eq('restaurant_id', id)
-        .eq('user_id', user.id)
-      if (vData) {
-        const map = {}
-        vData.forEach(v => { map[v.amenity_key] = v.vote })
-        setMyVotes(map)
-      }
-    }
-
-    const { data: revData } = await supabase
-      .from('reviews')
-      .select('*, profiles(display_name)')
-      .eq('restaurant_id', id)
-      .order('created_at', { ascending: false })
-    setReviews(revData || [])
-
-    // Load allergens
-    const { data: aData } = await supabase
-      .from('allergens')
-      .select('*')
-      .eq('restaurant_id', id)
-    setAllergens(aData || [])
-
-    // Load kids menu photos
-    const { data: kmData } = await supabase
-      .from('kids_menu_photos')
-      .select('*')
-      .eq('restaurant_id', id)
-      .order('created_at')
-    setKidsMenuPhotos(kmData || [])
-
-    // Load my allergen votes
-    if (user) {
-      const { data: avData } = await supabase
-        .from('allergen_votes')
-        .select('allergen_key, vote')
-        .eq('restaurant_id', id)
-        .eq('user_id', user.id)
-      if (avData) {
-        const map = {}
-        avData.forEach(v => { map[v.allergen_key] = v.vote })
-        setMyAllergenVotes(map)
-      }
-    }
-
-    // Store in cache
+    // Cache for future navigations
     restaurantCache[id] = {
       restaurant: r,
       amenities: r?.amenities || [],
-      photos: pData || [],
-      noiseVotes: nData ? Object.fromEntries([1,2,3,4,5].map(s => [s, nData.filter(v => v.score === s).length])) : {1:0,2:0,3:0,4:0,5:0},
-      reviews: revData || [],
+      photos: pData,
+      noiseVotes: noiseCounts,
+      reviews: revData,
+      allergens: aData,
+      kidsMenuPhotos: kmData,
     }
-    setLoading(false)
-    if (r) track.viewRestaurant(r.name)
 
-    // Load friends for share modal
-    if (user) {
-      const { data: fData } = await supabase
-        .from('friendships')
+    // Load user-specific data in parallel (non-blocking)
+    if (user) loadUserData()
+  }
+
+  async function loadUserData() {
+    const [vRes, avRes, fRes] = await Promise.all([
+      supabase.from('amenity_votes').select('amenity_key, vote').eq('restaurant_id', id).eq('user_id', user.id),
+      supabase.from('allergen_votes').select('allergen_key, vote').eq('restaurant_id', id).eq('user_id', user.id),
+      supabase.from('friendships')
         .select('requester_id, addressee_id, requester:profiles!friendships_requester_id_fkey(id, display_name), addressee:profiles!friendships_addressee_id_fkey(id, display_name)')
         .or(`requester_id.eq.${user.id},addressee_id.eq.${user.id}`)
-        .eq('status', 'accepted')
-      if (fData) {
-        setFriends(fData.map(f => f.requester_id === user.id ? f.addressee : f.requester))
-      }
+        .eq('status', 'accepted'),
+    ])
+    if (vRes.data) {
+      const map = {}
+      vRes.data.forEach(v => { map[v.amenity_key] = v.vote })
+      setMyVotes(map)
+    }
+    if (avRes.data) {
+      const map = {}
+      avRes.data.forEach(v => { map[v.allergen_key] = v.vote })
+      setMyAllergenVotes(map)
+    }
+    if (fRes.data) {
+      setFriends(fRes.data.map(f => f.requester_id === user.id ? f.addressee : f.requester))
     }
   }
 
@@ -290,6 +279,7 @@ export default function RestaurantPage() {
             is_verified: (a.yes_votes + a.no_votes + 1) >= 1 }
         : a
     ))
+    delete restaurantCache[id] // Invalidate cache
     showToast('+5 pts! Thanks for voting 🙌')
     // Log activity for friends feed
     await supabase.from('friend_activity').insert({
@@ -398,6 +388,7 @@ export default function RestaurantPage() {
     setReviewRating(5)
     setReviewPhotos([])
     setShowReviewForm(false)
+    delete restaurantCache[id] // Invalidate cache so fresh data loads
     showToast('+25 pts! Review posted ⭐')
     // Log activity for friends feed
     await supabase.from('friend_activity').insert({
