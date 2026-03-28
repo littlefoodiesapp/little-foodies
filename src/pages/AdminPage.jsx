@@ -45,6 +45,8 @@ export default function AdminPage() {
 
   // Photo Reports
   const [photoReports, setPhotoReports] = useState([])
+  // Amenity Reports
+  const [amenityReports, setAmenityReports] = useState([])
 
   // Events
   const [events, setEvents]         = useState([])
@@ -72,6 +74,7 @@ export default function AdminPage() {
     loadClaims()
     loadFeedback()
     loadPhotoReports()
+    loadAmenityReports()
     setLoading(false)
   }
 
@@ -105,6 +108,19 @@ export default function AdminPage() {
       .select('*, profiles(display_name, first_name)')
       .order('created_at', { ascending: false })
     setFeedback(data || [])
+  }
+
+  async function loadAmenityReports() {
+    const { data } = await supabase
+      .from('amenity_reports')
+      .select('*, profiles(display_name)')
+      .order('created_at', { ascending: false })
+    setAmenityReports(data || [])
+  }
+
+  async function resolveAmenityReport(id, status) {
+    await supabase.from('amenity_reports').update({ status }).eq('id', id)
+    setAmenityReports(prev => prev.map(r => r.id === id ? { ...r, status } : r))
   }
 
   async function loadPhotoReports() {
@@ -354,7 +370,7 @@ export default function AdminPage() {
           { id: 'events',      label: '🎉 Events' },
           { id: 'claims',      label: `🔑 Claims${claims.filter(c => c.status === 'pending').length > 0 ? ` (${claims.filter(c => c.status === 'pending').length})` : ''}` },
           { id: 'feedback',    label: `💬 Feedback${feedback.length > 0 ? ` (${feedback.length})` : ''}` },
-          { id: 'reports',     label: `🚩 Reports${photoReports.filter(r => r.status === 'pending').length > 0 ? ` (${photoReports.filter(r => r.status === 'pending').length})` : ''}` },
+          { id: 'reports',     label: `🚩 Reports${(photoReports.filter(r => r.status === 'pending').length + amenityReports.filter(r => r.status === 'pending').length) > 0 ? ` (${photoReports.filter(r => r.status === 'pending').length + amenityReports.filter(r => r.status === 'pending').length})` : ''}` },
         ].map(t => (
           <button key={t.id} onClick={() => setActiveTab(t.id)}
             style={{ flex: 1, padding: '12px 0', background: 'none', border: 'none',
@@ -723,8 +739,68 @@ export default function AdminPage() {
       {/* ── PHOTO REPORTS TAB ──────────────────────── */}
       {activeTab === 'reports' && (
         <div style={{ padding: '14px 16px 0' }}>
+
+          {/* Amenity Reports */}
+          <div style={{ fontSize: 12, fontWeight: 700, color: '#374151',
+            textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 10 }}>
+            🚩 Amenity Inaccuracy Reports ({amenityReports.filter(r => r.status === 'pending').length} pending)
+          </div>
+          {amenityReports.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '20px 0', color: '#9ca3af', fontSize: 13, ...font, marginBottom: 24 }}>
+              No amenity reports yet 🎉
+            </div>
+          ) : (
+            amenityReports.map(report => (
+              <div key={report.id} style={{ background: '#fff', border: '0.5px solid #e5e7eb',
+                borderRadius: 14, padding: '12px 14px', marginBottom: 10 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: '#374151' }}>
+                    {report.restaurant_name} · {report.amenity_key}
+                  </div>
+                  <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 20, fontWeight: 600,
+                    background: report.status === 'pending' ? '#fff3ee' : report.status === 'resolved' ? '#e6f7f5' : '#f3f4f6',
+                    color: report.status === 'pending' ? '#f57b46' : report.status === 'resolved' ? '#065f55' : '#6b7280' }}>
+                    {report.status}
+                  </span>
+                </div>
+                <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 4 }}>
+                  <span style={{ fontWeight: 600 }}>Reason:</span> {report.reason}
+                </div>
+                {report.details && (
+                  <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 4 }}>
+                    <span style={{ fontWeight: 600 }}>Details:</span> {report.details}
+                  </div>
+                )}
+                <div style={{ fontSize: 11, color: '#9ca3af', marginBottom: 10 }}>
+                  Reported by {report.profiles?.display_name || 'Unknown'} · {new Date(report.created_at).toLocaleDateString()}
+                </div>
+                {report.status === 'pending' && (
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button onClick={() => resolveAmenityReport(report.id, 'resolved')}
+                      style={{ flex: 1, padding: '7px 0', background: '#00a994', border: 'none',
+                        borderRadius: 8, color: '#fff', fontSize: 11, fontWeight: 600,
+                        cursor: 'pointer', ...font }}>
+                      ✓ Resolve
+                    </button>
+                    <button onClick={() => resolveAmenityReport(report.id, 'dismissed')}
+                      style={{ flex: 1, padding: '7px 0', background: '#f3f4f6', border: 'none',
+                        borderRadius: 8, color: '#6b7280', fontSize: 11, fontWeight: 600,
+                        cursor: 'pointer', ...font }}>
+                      Dismiss
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))
+          )}
+
+          {/* Photo Reports */}
+          <div style={{ fontSize: 12, fontWeight: 700, color: '#374151',
+            textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 10, marginTop: 8 }}>
+            📷 Photo Reports ({photoReports.filter(r => r.status === 'pending').length} pending)
+          </div>
           {photoReports.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '40px 0', color: '#9ca3af', fontSize: 13, ...font }}>
+            <div style={{ textAlign: 'center', padding: '20px 0', color: '#9ca3af', fontSize: 13, ...font }}>
               No pending photo reports 🎉
             </div>
           ) : (

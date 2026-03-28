@@ -56,6 +56,13 @@ export default function RestaurantPage() {
   const [savedNoise, setSavedNoise]       = useState(null) // confirmed saved vote
   const [reviews, setReviews]       = useState([])
   const [showReviewForm, setShowReviewForm] = useState(false)
+  const [reviewPhotos, setReviewPhotos]     = useState([])
+  const [uploadingReviewPhoto, setUploadingReviewPhoto] = useState(false)
+  const [showReportModal, setShowReportModal] = useState(false)
+  const [reportAmenity, setReportAmenity]   = useState(null)
+  const [reportReason, setReportReason]     = useState('')
+  const [reportDetails, setReportDetails]   = useState('')
+  const [submittingReport, setSubmittingReport] = useState(false)
   const [reviewText, setReviewText] = useState('')
   const [reviewRating, setReviewRating] = useState(5)
   const [uploading, setUploading]   = useState(false)
@@ -224,6 +231,44 @@ export default function RestaurantPage() {
     showToast('Restaurant shared! 📤')
   }
 
+  async function uploadReviewPhoto(e) {
+    const file = e.target.files[0]
+    if (!file) return
+    if (reviewPhotos.length >= 3) { showToast('Max 3 photos per review', false); return }
+    setUploadingReviewPhoto(true)
+    const ext  = file.name.split('.').pop()
+    const path = `reviews/${id}/${Date.now()}.${ext}`
+    const { error: upErr } = await supabase.storage.from('restaurant-photos').upload(path, file)
+    if (upErr) { showToast(upErr.message, false); setUploadingReviewPhoto(false); return }
+    const { data: urlData } = supabase.storage.from('restaurant-photos').getPublicUrl(path)
+    setReviewPhotos(prev => [...prev, urlData.publicUrl])
+    setUploadingReviewPhoto(false)
+  }
+
+  async function submitReport() {
+    if (!reportReason) return
+    setSubmittingReport(true)
+    try {
+      await supabase.from('amenity_reports').insert({
+        restaurant_id: id,
+        restaurant_name: restaurant?.name,
+        amenity_key: reportAmenity?.id,
+        reason: reportReason,
+        details: reportDetails.trim() || null,
+        reported_by: user?.id,
+        status: 'pending'
+      })
+      showToast('Report submitted — thank you! 🙏')
+    } catch (e) {
+      showToast('Could not submit report', false)
+    }
+    setSubmittingReport(false)
+    setShowReportModal(false)
+    setReportReason('')
+    setReportDetails('')
+    setReportAmenity(null)
+  }
+
   function showToast(msg, ok = true) {
     setToast({ msg, ok })
     setTimeout(() => setToast(null), 2500)
@@ -242,7 +287,7 @@ export default function RestaurantPage() {
         ? { ...a,
             yes_votes: a.yes_votes + (vote === 'yes' ? 1 : 0),
             no_votes:  a.no_votes  + (vote === 'no' ? 1 : 0),
-            is_verified: (a.yes_votes + a.no_votes + 1) >= 3 }
+            is_verified: (a.yes_votes + a.no_votes + 1) >= 1 }
         : a
     ))
     showToast('+5 pts! Thanks for voting 🙌')
@@ -262,7 +307,7 @@ export default function RestaurantPage() {
       await supabase.from('allergens').update({
         yes_votes: existing.yes_votes + (vote === 'yes' ? 1 : 0),
         no_votes:  existing.no_votes  + (vote === 'no' ? 1 : 0),
-        is_verified: (existing.yes_votes + existing.no_votes + 1) >= 3,
+        is_verified: (existing.yes_votes + existing.no_votes + 1) >= 1,
       }).eq('id', existing.id)
     } else {
       await supabase.from('allergens').insert({
@@ -345,11 +390,13 @@ export default function RestaurantPage() {
       restaurant_id: id,
       user_id: user.id,
       rating: reviewRating,
-      body: reviewText.trim()
+      body: reviewText.trim(),
+      photos: reviewPhotos.length > 0 ? reviewPhotos : null
     })
     if (error) { showToast(error.message, false); return }
     setReviewText('')
     setReviewRating(5)
+    setReviewPhotos([])
     setShowReviewForm(false)
     showToast('+25 pts! Review posted ⭐')
     // Log activity for friends feed
@@ -570,7 +617,7 @@ export default function RestaurantPage() {
             const confirmed  = isVer && likelyYes
             const denied     = isVer && !likelyYes
             const hasVotes   = totalVotes > 0
-            const THRESHOLD  = 3
+            const THRESHOLD  = 1
             return (
               <div key={am.id}
                 onClick={am.id === 'kidsmenu' ? () => setShowKidsMenu(true) : undefined}
@@ -609,7 +656,7 @@ export default function RestaurantPage() {
                   {confirmed
                     ? '✓ Verified'
                     : hasVotes
-                      ? `${Math.min(totalVotes, THRESHOLD)}/${THRESHOLD} voted`
+                      ? totalVotes > 0 ? '✓ Verified' : '0/1 voted'
                       : '0/3 voted'}
                 </span>
               </div>
@@ -685,7 +732,7 @@ export default function RestaurantPage() {
             Help verify amenities · earn 5 pts
           </div>
           <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 10 }}>
-            5 votes = verified ✓ · This restaurant needs community verification!
+            1 vote = verified ✓ · Help verify this restaurant's amenities!
           </div>
           {AMENITIES.map(am => {
             const data  = amenityMap[am.id] || { yes_votes: 0, no_votes: 0, is_verified: false }
@@ -704,6 +751,14 @@ export default function RestaurantPage() {
                       borderRadius: 20, fontWeight: 600 }}>✓ Verified</span>
                   )}
                   {total > 0 && <span style={{ fontSize: 11, color: '#9ca3af' }}>{total} votes</span>}
+                  {user && (
+                    <button onClick={() => { setReportAmenity(am); setShowReportModal(true) }}
+                      style={{ background: 'none', border: 'none', fontSize: 10,
+                        color: '#9ca3af', cursor: 'pointer', padding: '2px 4px',
+                        fontWeight: 500, ...font, textDecoration: 'underline' }}>
+                      🚩 Report
+                    </button>
+                  )}
                 </div>
                 {total > 0 && (
                   <div style={{ height: 4, background: '#e5e7eb', borderRadius: 2,
@@ -787,8 +842,37 @@ export default function RestaurantPage() {
                 borderRadius: 10, fontSize: 12, resize: 'none', outline: 'none',
                 boxSizing: 'border-box', ...font, background: '#fff' }}
             />
+            {/* Review photo upload */}
+            <div style={{ marginTop: 10 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: '#6b7280', marginBottom: 6 }}>
+                📷 Add photos (optional, up to 3)
+              </div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
+                {reviewPhotos.map((url, i) => (
+                  <div key={i} style={{ position: 'relative' }}>
+                    <img src={url} style={{ width: 64, height: 64, objectFit: 'cover',
+                      borderRadius: 8, border: '1px solid #e5e7eb' }} />
+                    <button onClick={() => setReviewPhotos(prev => prev.filter((_, j) => j !== i))}
+                      style={{ position: 'absolute', top: -6, right: -6, width: 18, height: 18,
+                        borderRadius: '50%', background: '#ef4444', border: 'none',
+                        color: '#fff', fontSize: 10, cursor: 'pointer', fontWeight: 700,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+                  </div>
+                ))}
+                {reviewPhotos.length < 3 && (
+                  <label style={{ width: 64, height: 64, borderRadius: 8,
+                    border: '1.5px dashed #d1d5db', display: 'flex', alignItems: 'center',
+                    justifyContent: 'center', cursor: 'pointer', background: '#f9fafb',
+                    fontSize: 22 }}>
+                    {uploadingReviewPhoto ? '⏳' : '+'}
+                    <input type="file" accept="image/*" style={{ display: 'none' }}
+                      onChange={uploadReviewPhoto} disabled={uploadingReviewPhoto} />
+                  </label>
+                )}
+              </div>
+            </div>
             <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-              <button onClick={() => { setShowReviewForm(false); setReviewText('') }}
+              <button onClick={() => { setShowReviewForm(false); setReviewText(''); setReviewPhotos([]) }}
                 style={{ flex: 1, padding: '9px 0', background: '#fff',
                   border: '1.5px solid #e5e7eb', borderRadius: 10, fontSize: 12,
                   fontWeight: 600, cursor: 'pointer', color: '#6b7280', ...font }}>
@@ -835,6 +919,14 @@ export default function RestaurantPage() {
             </div>
             {rev.body && (
               <div style={{ fontSize: 12, color: '#374151', lineHeight: 1.6 }}>{rev.body}</div>
+            )}
+            {rev.photos && rev.photos.length > 0 && (
+              <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
+                {rev.photos.map((url, i) => (
+                  <img key={i} src={url} style={{ width: 72, height: 72, objectFit: 'cover',
+                    borderRadius: 8, border: '0.5px solid #e5e7eb' }} />
+                ))}
+              </div>
             )}
           </div>
         ))}
@@ -899,6 +991,74 @@ export default function RestaurantPage() {
                 ))}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Report Inaccuracy Modal */}
+      {showReportModal && (
+        <div onClick={() => setShowReportModal(false)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)',
+            zIndex: 9999, display: 'flex', alignItems: 'flex-end' }}>
+          <div onClick={e => e.stopPropagation()}
+            style={{ background: '#fff', width: '100%', borderRadius: '20px 20px 0 0',
+              padding: '24px 20px 48px', fontFamily: "'Montserrat', sans-serif" }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+              <div style={{ fontSize: 15, fontWeight: 700, color: '#111827' }}>
+                🚩 Report inaccuracy
+              </div>
+              <button onClick={() => setShowReportModal(false)}
+                style={{ background: '#f3f4f6', border: 'none', borderRadius: '50%',
+                  width: 32, height: 32, cursor: 'pointer', fontSize: 16 }}>✕</button>
+            </div>
+            {reportAmenity && (
+              <div style={{ fontSize: 13, color: '#6b7280', marginBottom: 16 }}>
+                Reporting: <span style={{ fontWeight: 600, color: '#374151' }}>
+                  {reportAmenity.icon} {reportAmenity.label}
+                </span> at {restaurant?.name}
+              </div>
+            )}
+            <div style={{ fontSize: 11, fontWeight: 600, color: '#374151',
+              textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 8 }}>
+              Reason
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 }}>
+              {[
+                'Information is incorrect',
+                'Restaurant has changed',
+                'This amenity no longer exists',
+                'Was never accurate',
+                'Other',
+              ].map(r => (
+                <button key={r} onClick={() => setReportReason(r)}
+                  style={{ padding: '10px 14px', borderRadius: 10, textAlign: 'left',
+                    border: reportReason === r ? '2px solid #f57b46' : '1.5px solid #e5e7eb',
+                    background: reportReason === r ? '#fff3ee' : '#f9fafb',
+                    fontSize: 13, fontWeight: reportReason === r ? 600 : 400,
+                    color: reportReason === r ? '#f57b46' : '#374151',
+                    cursor: 'pointer', fontFamily: "'Montserrat', sans-serif" }}>
+                  {r}
+                </button>
+              ))}
+            </div>
+            <textarea
+              value={reportDetails}
+              onChange={e => setReportDetails(e.target.value)}
+              placeholder="Additional details (optional)…"
+              rows={2}
+              style={{ width: '100%', padding: '10px 12px', border: '1.5px solid #e5e7eb',
+                borderRadius: 10, fontSize: 12, resize: 'none', outline: 'none',
+                boxSizing: 'border-box', fontFamily: "'Montserrat', sans-serif",
+                background: '#fafafa', marginBottom: 14 }}
+            />
+            <button onClick={submitReport} disabled={!reportReason || submittingReport}
+              style={{ width: '100%', padding: '13px 0', background: '#f57b46', border: 'none',
+                borderRadius: 12, color: '#fff', fontSize: 14, fontWeight: 600,
+                cursor: !reportReason || submittingReport ? 'not-allowed' : 'pointer',
+                opacity: !reportReason || submittingReport ? .6 : 1,
+                fontFamily: "'Montserrat', sans-serif" }}>
+              {submittingReport ? 'Submitting…' : 'Submit report'}
+            </button>
           </div>
         </div>
       )}
