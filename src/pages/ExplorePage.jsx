@@ -61,6 +61,7 @@ export default function ExplorePage() {
   const [activeFilters, setFilters]   = useState(new Set())
   const [loading, setLoading]         = useState(!cachedRestaurants)
   const [search, setSearch]           = useState(() => sessionStorage.getItem('lf_search') || '')
+  const [geolocating, setGeolocating] = useState(false)
   const [hasSearched, setHasSearched] = useState(() => sessionStorage.getItem('lf_hassearched') === 'true')
   const [radius, setRadius]           = useState(() => Number(sessionStorage.getItem('lf_radius')) || 5)
   const fetchedFavs = useRef(false)
@@ -153,6 +154,40 @@ export default function ExplorePage() {
     }
   }
 
+  async function useMyLocation() {
+    if (!navigator.geolocation) {
+      alert('Geolocation is not supported by your browser')
+      return
+    }
+    setGeolocating(true)
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude, longitude } = pos.coords
+        try {
+          // Use OpenStreetMap Nominatim for free reverse geocoding
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`,
+            { headers: { 'Accept-Language': 'en' } }
+          )
+          const data = await res.json()
+          const zip = data.address?.postcode?.split('-')[0] // Handle ZIP+4 format
+          if (zip) {
+            handleQuickSearch(zip)
+          } else {
+            alert('Could not find a zip code for your location. Try entering it manually.')
+          }
+        } catch (e) {
+          alert('Could not get your location. Please try entering your zip code.')
+        }
+        setGeolocating(false)
+      },
+      () => {
+        alert('Location access was denied. Please enter your zip code manually.')
+        setGeolocating(false)
+      }
+    )
+  }
+
   const term = search.trim().toLowerCase()
   const searchCoords = ZIP_COORDS[term] || null
 
@@ -204,7 +239,14 @@ export default function ExplorePage() {
                 Search
               </button>
             </div>
-            <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+              <button onClick={useMyLocation} disabled={geolocating}
+                style={{ padding: '6px 13px', background: geolocating ? '#f3f4f6' : '#fff3ee',
+                  border: '1px solid #fdc9b0', borderRadius: 20, fontSize: 12, fontWeight: 600,
+                  color: '#f57b46', cursor: geolocating ? 'not-allowed' : 'pointer',
+                  ...font, display: 'flex', alignItems: 'center', gap: 5 }}>
+                {geolocating ? '⏳ Finding you…' : '📍 Use my location'}
+              </button>
               {['07083', '07066', '07016', '07090', '07901'].map(q => (
                 <button key={q} onClick={() => handleQuickSearch(q)}
                   style={{ padding: '6px 13px', background: '#fff', border: '1px solid #e5e7eb',
