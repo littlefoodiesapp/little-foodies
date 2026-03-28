@@ -390,11 +390,24 @@ export default function RestaurantPage() {
     setShowReviewForm(false)
     delete restaurantCache[id] // Invalidate cache so fresh data loads
     showToast('+25 pts! Review posted ⭐')
+    // Log to points_ledger so profile review count updates
+    try {
+      await supabase.from('points_ledger').insert({
+        id: crypto.randomUUID(), user_id: user.id,
+        action: 'review', points: 25
+      })
+      const { data: profile } = await supabase.from('profiles').select('points').eq('id', user.id).single()
+      if (profile) {
+        await supabase.from('profiles').update({ points: (profile.points || 0) + 25 }).eq('id', user.id)
+      }
+    } catch (e) { console.error('Points log failed:', e) }
     // Log activity for friends feed
-    await supabase.from('friend_activity').insert({
-      user_id: user.id, activity_type: 'review',
-      restaurant_id: id, restaurant_name: restaurant?.name, points: 25
-    }).catch(() => {})
+    try {
+      await supabase.from('friend_activity').insert({
+        user_id: user.id, activity_type: 'review',
+        restaurant_id: id, restaurant_name: restaurant?.name, points: 25
+      })
+    } catch (e) {}
     loadAll()
   }
 

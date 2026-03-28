@@ -213,7 +213,7 @@ export default function ProfilePage() {
   const joinDate = formatDate(profile?.created_at || user?.created_at)
   const totalVotes = history.filter(h => h.action === 'vote').length
   const totalAdded = history.filter(h => h.action === 'add_restaurant').length
-  const totalReviews = history.filter(h => h.action === 'review').length
+  const totalReviews = history.filter(h => h.action === 'review' || h.action === 'write_review').length
 
   const tabs = [
     { id: 'overview',   label: 'Overview' },
