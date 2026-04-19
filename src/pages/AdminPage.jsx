@@ -47,6 +47,9 @@ export default function AdminPage() {
   const [photoReports, setPhotoReports] = useState([])
   // Amenity Reports
   const [amenityReports, setAmenityReports] = useState([])
+  const [fixingReport, setFixingReport]     = useState(null) // report being fixed
+  const [fixVote, setFixVote]               = useState(null) // 'yes' or 'no'
+  const [savingFix, setSavingFix]           = useState(false)
 
   // Events
   const [events, setEvents]         = useState([])
@@ -121,6 +124,47 @@ export default function AdminPage() {
   async function resolveAmenityReport(id, status) {
     await supabase.from('amenity_reports').update({ status }).eq('id', id)
     setAmenityReports(prev => prev.map(r => r.id === id ? { ...r, status } : r))
+  }
+
+  async function fixAmenity() {
+    if (!fixingReport || !fixVote) return
+    setSavingFix(true)
+    const { restaurant_id, amenity_key } = fixingReport
+
+    // Get restaurant_id if not on report
+    let restId = restaurant_id
+    if (!restId) {
+      const { data } = await supabase.from('restaurants')
+        .select('id').ilike('name', `%${fixingReport.restaurant_name}%`).single()
+      restId = data?.id
+    }
+
+    if (restId) {
+      const yes = fixVote === 'yes' ? 1 : 0
+      const no  = fixVote === 'no'  ? 1 : 0
+
+      // Upsert the amenity row
+      await supabase.from('amenities').upsert({
+        restaurant_id: restId,
+        amenity_key,
+        yes_votes: yes,
+        no_votes: no,
+        is_verified: true,
+      }, { onConflict: 'restaurant_id,amenity_key' })
+
+      // Clear any existing votes so users can't change it
+      await supabase.from('amenity_votes')
+        .delete()
+        .eq('restaurant_id', restId)
+        .eq('amenity_key', amenity_key)
+    }
+
+    // Mark report resolved
+    await resolveAmenityReport(fixingReport.id, 'resolved')
+    setSavingFix(false)
+    setFixingReport(null)
+    setFixVote(null)
+    showToast('Amenity fixed & report resolved ✓')
   }
 
   async function loadPhotoReports() {
@@ -776,11 +820,11 @@ export default function AdminPage() {
                 </div>
                 {report.status === 'pending' && (
                   <div style={{ display: 'flex', gap: 8 }}>
-                    <button onClick={() => resolveAmenityReport(report.id, 'resolved')}
-                      style={{ flex: 1, padding: '7px 0', background: '#00a994', border: 'none',
+                    <button onClick={() => { setFixingReport(report); setFixVote(null) }}
+                      style={{ flex: 2, padding: '7px 0', background: '#f57b46', border: 'none',
                         borderRadius: 8, color: '#fff', fontSize: 11, fontWeight: 600,
                         cursor: 'pointer', ...font }}>
-                      ✓ Resolve
+                      ✏️ Fix amenity
                     </button>
                     <button onClick={() => resolveAmenityReport(report.id, 'dismissed')}
                       style={{ flex: 1, padding: '7px 0', background: '#f3f4f6', border: 'none',
@@ -981,6 +1025,63 @@ export default function AdminPage() {
           </div>
         </div>
       )}
+    {/* Fix Amenity Modal */}
+    {fixingReport && (
+      <div onClick={() => setFixingReport(null)}
+        style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)',
+          zIndex: 9999, display: 'flex', alignItems: 'flex-end' }}>
+        <div onClick={e => e.stopPropagation()}
+          style={{ background: '#fff', width: '100%', borderRadius: '20px 20px 0 0',
+            padding: '24px 20px 48px', fontFamily: "'Montserrat', sans-serif" }}>
+          <div style={{ fontSize: 15, fontWeight: 700, color: '#111827', marginBottom: 6 }}>
+            ✏️ Fix amenity
+          </div>
+          <div style={{ fontSize: 13, color: '#6b7280', marginBottom: 20 }}>
+            <span style={{ fontWeight: 600, color: '#374151' }}>{fixingReport.restaurant_name}</span>
+            {' · '}{fixingReport.amenity_key}
+          </div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#374151',
+            textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 12 }}>
+            What is the correct answer?
+          </div>
+          <div style={{ display: 'flex', gap: 12, marginBottom: 24 }}>
+            <button onClick={() => setFixVote('yes')}
+              style={{ flex: 1, padding: '14px 0', borderRadius: 12, fontSize: 14,
+                fontWeight: 700, cursor: 'pointer',
+                background: fixVote === 'yes' ? '#00a994' : '#e6f7f5',
+                color: fixVote === 'yes' ? '#fff' : '#065f55',
+                border: fixVote === 'yes' ? '2px solid #00a994' : '2px solid #99ddd6',
+                fontFamily: "'Montserrat', sans-serif" }}>
+              ✓ Yes — it exists
+            </button>
+            <button onClick={() => setFixVote('no')}
+              style={{ flex: 1, padding: '14px 0', borderRadius: 12, fontSize: 14,
+                fontWeight: 700, cursor: 'pointer',
+                background: fixVote === 'no' ? '#dc2626' : '#fef2f2',
+                color: fixVote === 'no' ? '#fff' : '#dc2626',
+                border: fixVote === 'no' ? '2px solid #dc2626' : '2px solid #fecaca',
+                fontFamily: "'Montserrat', sans-serif" }}>
+              ✗ No — it doesn't
+            </button>
+          </div>
+          <button onClick={fixAmenity} disabled={!fixVote || savingFix}
+            style={{ width: '100%', padding: '14px 0', background: '#f57b46', border: 'none',
+              borderRadius: 12, color: '#fff', fontSize: 14, fontWeight: 700,
+              cursor: !fixVote || savingFix ? 'not-allowed' : 'pointer',
+              opacity: !fixVote || savingFix ? .5 : 1,
+              fontFamily: "'Montserrat', sans-serif" }}>
+            {savingFix ? 'Saving…' : 'Save fix & resolve report'}
+          </button>
+          <button onClick={() => setFixingReport(null)}
+            style={{ width: '100%', padding: '11px 0', background: 'none', border: 'none',
+              color: '#9ca3af', fontSize: 13, cursor: 'pointer', marginTop: 8,
+              fontFamily: "'Montserrat', sans-serif" }}>
+            Cancel
+          </button>
+        </div>
+      </div>
+    )}
+
     </div>
   )
 }
