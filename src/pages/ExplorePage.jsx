@@ -395,7 +395,7 @@ export default function ExplorePage() {
           {!loading && !noResults && visible.length > 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '0 16px 16px' }}>
               {visible.map((r, i) => {
-                const verifiedAms = (r.amenities || []).filter(a => a.is_verified).slice(0, 3)
+                const verifiedAms = (r.amenities || []).filter(a => a.yes_votes >= 1 && a.yes_votes >= a.no_votes).slice(0, 4)
                 const isPending = r.status === 'pending'
                 return (
                   <Link key={r.id} to={'/restaurant/' + r.id} style={{ textDecoration: 'none', color: 'inherit' }}>
