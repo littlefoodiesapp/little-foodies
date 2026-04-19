@@ -156,12 +156,13 @@ export default function AddRestaurantPage() {
     try {
       const currentUser = user
 
-      // Check for duplicate restaurant by address
+      // Check for duplicate restaurant by name + address (allows different restaurants at same address e.g. mall)
       const { data: existing } = await supabase
         .from('restaurants')
         .select('id, name')
         .ilike('address', form.address.trim())
         .ilike('city', form.city.trim())
+        .ilike('name', form.name.trim())
         .maybeSingle()
 
       if (existing) {
@@ -184,7 +185,7 @@ export default function AddRestaurantPage() {
       if (insertErr) {
         // Handle unique constraint violation gracefully
         if (insertErr.message.includes('unique') || insertErr.code === '23505') {
-          setError('This restaurant already exists at that address.')
+          setError('A restaurant with this name already exists at that address.')
         } else {
           throw new Error(insertErr.message)
         }
