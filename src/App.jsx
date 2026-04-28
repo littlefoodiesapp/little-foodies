@@ -13,6 +13,7 @@ import ResetPasswordPage   from './pages/ResetPasswordPage'
 import EventsPage          from './pages/EventsPage'
 import AdminPage           from './pages/AdminPage'
 import FriendsPage         from './pages/FriendsPage'
+import FavoritesPage       from './pages/FavoritesPage'
 import FriendProfilePage    from './pages/FriendProfilePage'
 import { trackPageView }    from './lib/analytics'
 import OnboardingScreen      from './pages/OnboardingScreen'
@@ -82,6 +83,7 @@ export default function App() {
           <Route path="/restaurant/:id"  element={<RestaurantPage />} />
           <Route path="/events"          element={<EventsPage />} />
           <Route path="/friends"          element={<FriendsPage />} />
+          <Route path="/favorites"        element={<FavoritesPage />} />
           <Route path="/friends/:friendId"  element={<FriendProfilePage />} />
           <Route path="/admin"           element={user ? <AdminPage /> : <Navigate to="/login" />} />
           <Route path="/profile"         element={user ? <ProfilePage /> : <Navigate to="/login" />} />
@@ -132,13 +134,13 @@ export default function App() {
               }}>+</div>
               Add
             </Link>
-            <Link to="/friends" style={{
+            <Link to="/favorites" style={{
               flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',
               gap: 2, textDecoration: 'none', paddingBottom: 4,
-              color: loc.pathname === '/friends' ? '#f57b46' : '#9ca3af',
+              color: loc.pathname === '/favorites' ? '#f57b46' : '#9ca3af',
               fontSize: 10, fontWeight: 600, ...font
             }}>
-              <span style={{ fontSize: 20 }}>❤️</span>Friends
+              <span style={{ fontSize: 20 }}>❤️</span>Favorites
             </Link>
             <Link to={user ? "/profile" : "/login"} style={{
               flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',

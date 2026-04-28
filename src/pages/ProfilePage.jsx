@@ -51,6 +51,7 @@ export default function ProfilePage() {
   const [nameVal, setNameVal]       = useState('')
   const [loading, setLoading]       = useState(!cachedProfile)
   const [activeTab, setActiveTab]   = useState('overview')
+  const [friends, setFriends]       = useState([])
   const [showEditProfile, setShowEditProfile] = useState(false)
   const [editForm, setEditForm]     = useState({})
   const [showFeedback, setShowFeedback] = useState(false)
@@ -134,6 +135,14 @@ export default function ProfilePage() {
       setNameVal(profileData?.display_name || '')
       setHistory(histRes.data || [])
       setFavorites(favRes.data || [])
+      // Load friends
+      const { data: friendData } = await supabase
+        .from('friendships')
+        .select('requester_id, addressee_id, requester:profiles!friendships_requester_id_fkey(id, display_name, points), addressee:profiles!friendships_addressee_id_fkey(id, display_name, points)')
+        .or(`requester_id.eq.${user.id},addressee_id.eq.${user.id}`)
+        .eq('status', 'accepted')
+      setFriends((friendData || []).map(f => f.requester_id === user.id ? f.addressee : f.requester))
+
     } catch (err) {
       console.error('Profile load error:', err)
     } finally {
@@ -234,7 +243,7 @@ export default function ProfilePage() {
 
   const tabs = [
     { id: 'overview',   label: 'Overview' },
-    { id: 'favorites',  label: 'Favorites' + (favorites.length > 0 ? ' (' + favorites.length + ')' : '') },
+    { id: 'friends',    label: 'Friends' + (friends.length > 0 ? ' (' + friends.length + ')' : '') },
     { id: 'activity',   label: 'Activity' },
   ]
 
@@ -501,60 +510,54 @@ export default function ProfilePage() {
       )}
 
       {/* ── FAVORITES TAB ──────────────────────────────────── */}
-      {activeTab === 'favorites' && (
+      {activeTab === 'friends' && (
         <div style={{ padding: '16px 16px 0' }}>
-          {favorites.length === 0 ? (
+          {friends.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '40px 20px' }}>
-              <div style={{ fontSize: 48, marginBottom: 12 }}>♡</div>
+              <div style={{ fontSize: 48, marginBottom: 12 }}>👫</div>
               <div style={{ fontSize: 15, fontWeight: 600, color: '#374151', marginBottom: 6 }}>
-                No favorites yet
+                No friends yet
               </div>
               <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 20 }}>
-                Tap the ♡ on any restaurant to save it here
+                Connect with other Little Foodies parents!
               </div>
-              <Link to="/" style={{ padding: '10px 24px', background: '#f57b46',
+              <Link to="/friends" style={{ padding: '10px 24px', background: '#f57b46',
                 color: '#fff', borderRadius: 10, fontSize: 13, fontWeight: 600,
                 textDecoration: 'none' }}>
-                Explore restaurants
+                Find friends
               </Link>
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {favorites.map(f => {
-                const r = f.restaurants
-                if (!r) return null
-                return (
-                  <div key={f.restaurant_id} style={{ background: '#fff',
-                    border: '0.5px solid #e5e7eb', borderRadius: 12,
-                    overflow: 'hidden', display: 'flex' }}>
-                    <Link to={'/restaurant/' + r.id}
-                      style={{ flex: 1, textDecoration: 'none', color: 'inherit',
-                        display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px' }}>
-                      <div style={{ width: 48, height: 48, borderRadius: 10,
-                        background: '#fff3ee', display: 'flex', alignItems: 'center',
-                        justifyContent: 'center', fontSize: 24, flexShrink: 0 }}>
-                        {r.emoji || '🍽️'}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {friends.map(f => (
+                <Link key={f.id} to={`/friends/${f.id}`}
+                  style={{ textDecoration: 'none' }}>
+                  <div style={{ background: '#fff', border: '0.5px solid #e5e7eb',
+                    borderRadius: 12, padding: '12px 14px',
+                    display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <div style={{ width: 42, height: 42, borderRadius: '50%',
+                      background: '#fff3ee', display: 'flex', alignItems: 'center',
+                      justifyContent: 'center', fontSize: 18, fontWeight: 700,
+                      color: '#f57b46', flexShrink: 0 }}>
+                      {(f.display_name || '?').charAt(0).toUpperCase()}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: '#111827' }}>
+                        {f.display_name}
                       </div>
-                      <div>
-                        <div style={{ fontSize: 14, fontWeight: 600, color: '#111827', marginBottom: 2 }}>
-                          {r.name}
-                        </div>
-                        <div style={{ fontSize: 11, color: '#6b7280' }}>{r.cuisine}</div>
-                        {r.city && (
-                          <div style={{ fontSize: 11, color: '#9ca3af' }}>
-                            📍 {r.city}, {r.state}
-                          </div>
-                        )}
+                      <div style={{ fontSize: 11, color: '#9ca3af' }}>
+                        🏅 {f.points || 0} pts
                       </div>
-                    </Link>
-                    <button onClick={() => removeFavorite(f.restaurant_id)}
-                      style={{ padding: '0 16px', background: 'none', border: 'none',
-                        cursor: 'pointer', fontSize: 20, color: '#f46ab8' }}>
-                      ♥
-                    </button>
+                    </div>
+                    <span style={{ color: '#9ca3af', fontSize: 16 }}>›</span>
                   </div>
-                )
-              })}
+                </Link>
+              ))}
+              <Link to="/friends" style={{ display: 'block', textAlign: 'center',
+                padding: '12px', fontSize: 13, fontWeight: 600, color: '#f57b46',
+                textDecoration: 'none', marginTop: 4 }}>
+                Manage friends →
+              </Link>
             </div>
           )}
         </div>
