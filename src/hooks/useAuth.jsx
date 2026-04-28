@@ -3,8 +3,11 @@ import { supabase } from '../lib/supabase'
 
 const AuthContext = createContext(null)
 
-// Cache user at module level so it survives navigation
-let cachedUser = undefined // undefined = unknown, null = logged out
+// Cache user and profile at module level so they survive navigation
+let cachedUser    = undefined // undefined = unknown, null = logged out
+export let cachedProfile = null // profile cache shared across all pages
+
+export function setCachedProfile(p) { cachedProfile = p }
 
 export function AuthProvider({ children }) {
   const [user, setUser]       = useState(cachedUser)
@@ -23,14 +26,13 @@ export function AuthProvider({ children }) {
       setUser(confirmed)
       setLoading(false)
 
-      // Ensure profile exists on every session restore
+      // Fetch and cache profile on session restore
       if (confirmed) {
         const { data: existing } = await supabase
-          .from('profiles').select('id, display_name').eq('id', confirmed.id).single()
+          .from('profiles').select('*').eq('id', confirmed.id).single()
         if (!existing) {
-          // Profile missing — create it now
           const meta = confirmed.user_metadata || {}
-          await supabase.from('profiles').insert({
+          const newProfile = {
             id:           confirmed.id,
             email:        confirmed.email || null,
             display_name: meta.display_name || meta.first_name || confirmed.email?.split('@')[0],
@@ -38,14 +40,21 @@ export function AuthProvider({ children }) {
             last_name:    meta.last_name  || null,
             account_type: meta.account_type || 'family',
             points:       0,
-          }).catch(() => {})
-        } else if (!existing.display_name) {
-          // Profile exists but display_name is blank — fix it
-          const meta = confirmed.user_metadata || {}
-          await supabase.from('profiles').update({
-            display_name: meta.display_name || meta.first_name || confirmed.email?.split('@')[0],
-            email: confirmed.email || null,
-          }).eq('id', confirmed.id).catch(() => {})
+          }
+          await supabase.from('profiles').insert(newProfile).catch(() => {})
+          cachedProfile = newProfile
+        } else {
+          if (!existing.display_name) {
+            const meta = confirmed.user_metadata || {}
+            const fix = {
+              display_name: meta.display_name || meta.first_name || confirmed.email?.split('@')[0],
+              email: confirmed.email || null,
+            }
+            await supabase.from('profiles').update(fix).eq('id', confirmed.id).catch(() => {})
+            cachedProfile = { ...existing, ...fix }
+          } else {
+            cachedProfile = existing
+          }
         }
       }
     })
@@ -135,7 +144,7 @@ export function AuthProvider({ children }) {
 
   async function logout() {
     cachedUser = null
-    // Signal all page-level caches to reset on next load
+    cachedProfile = null
     window.__lf_clear_profile_cache = true
     await supabase.auth.signOut()
     setUser(null)

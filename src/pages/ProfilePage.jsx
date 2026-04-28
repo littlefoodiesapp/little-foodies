@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import { useAuth } from '../hooks/useAuth'
+import { useAuth, cachedProfile, setCachedProfile } from '../hooks/useAuth'
 
 const font = { fontFamily: "'Montserrat', sans-serif" }
 
@@ -43,13 +43,13 @@ export default function ProfilePage() {
   const navigate = useNavigate()
   const fileRef  = useRef()
 
-  const [profile, setProfile]       = useState(null)
+  const [profile, setProfile]       = useState(cachedProfile)
   const [history, setHistory]       = useState([])
   const [favorites, setFavorites]   = useState([])
   const [uploading, setUploading]   = useState(false)
   const [editName, setEditName]     = useState(false)
   const [nameVal, setNameVal]       = useState('')
-  const [loading, setLoading]       = useState(true)
+  const [loading, setLoading]       = useState(!cachedProfile)
   const [activeTab, setActiveTab]   = useState('overview')
   const [showEditProfile, setShowEditProfile] = useState(false)
   const [editForm, setEditForm]     = useState({})
@@ -64,7 +64,7 @@ export default function ProfilePage() {
       window.__lf_clear_profile_cache = false
     }
     if (user) {
-      setLoading(true)
+      if (!cachedProfile) setLoading(true)
       loadAll()
     } else {
       setProfile(null)
@@ -111,6 +111,7 @@ export default function ProfilePage() {
           }
           // Try to upsert this profile so future loads work
           await supabase.from('profiles').upsert(fallbackProfile, { onConflict: 'id' }).catch(() => {})
+          setCachedProfile(fallbackProfile)
           setProfile(fallbackProfile)
           setNameVal(fallbackProfile.display_name)
         }
@@ -128,6 +129,7 @@ export default function ProfilePage() {
           .then(r => r).catch(() => ({ data: [] })),
       ])
 
+      setCachedProfile(profileData)
       setProfile(profileData)
       setNameVal(profileData?.display_name || '')
       setHistory(histRes.data || [])

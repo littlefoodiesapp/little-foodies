@@ -60,10 +60,10 @@ export default function ExplorePage() {
   const [favIds, setFavIds]           = useState(new Set())
   const [activeFilters, setFilters]   = useState(new Set())
   const [loading, setLoading]         = useState(!cachedRestaurants)
-  const [search, setSearch]           = useState(() => sessionStorage.getItem('lf_search') || '')
+  const [search, setSearch]           = useState(() => localStorage.getItem('lf_search') || '')
   const [geolocating, setGeolocating] = useState(false)
-  const [hasSearched, setHasSearched] = useState(() => sessionStorage.getItem('lf_hassearched') === 'true')
-  const [radius, setRadius]           = useState(() => Number(sessionStorage.getItem('lf_radius')) || 5)
+  const [hasSearched, setHasSearched] = useState(() => localStorage.getItem('lf_hassearched') === 'true')
+  const [radius, setRadius]           = useState(() => Number(localStorage.getItem('lf_radius')) || 5)
   const fetchedFavs = useRef(false)
 
   useEffect(() => {
@@ -103,39 +103,39 @@ export default function ExplorePage() {
 
   function handleSearchChange(val) {
     setSearch(val)
-    sessionStorage.setItem('lf_search', val)
+    localStorage.setItem('lf_search', val)
     if (val.trim().length === 0) {
       setHasSearched(false)
-      sessionStorage.setItem('lf_hassearched', 'false')
+      localStorage.setItem('lf_hassearched', 'false')
     }
   }
 
   function submitSearch() {
     if (search.trim().length > 0) {
       setHasSearched(true)
-      sessionStorage.setItem('lf_hassearched', 'true')
+      localStorage.setItem('lf_hassearched', 'true')
     }
   }
 
   function handleQuickSearch(val) {
     setSearch(val)
     setHasSearched(true)
-    sessionStorage.setItem('lf_search', val)
-    sessionStorage.setItem('lf_hassearched', 'true')
+    localStorage.setItem('lf_search', val)
+    localStorage.setItem('lf_hassearched', 'true')
   }
 
   function clearSearch() {
     setSearch('')
     setHasSearched(false)
     setFilters(new Set())
-    sessionStorage.removeItem('lf_search')
-    sessionStorage.removeItem('lf_hassearched')
-    sessionStorage.removeItem('lf_radius')
+    localStorage.removeItem('lf_search')
+    localStorage.removeItem('lf_hassearched')
+    localStorage.removeItem('lf_radius')
   }
 
   function updateRadius(r) {
     setRadius(r)
-    sessionStorage.setItem('lf_radius', String(r))
+    localStorage.setItem('lf_radius', String(r))
   }
 
   function toggleFilter(id) {
