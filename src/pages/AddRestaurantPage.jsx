@@ -51,7 +51,7 @@ export default function AddRestaurantPage() {
   const debounceRef = useRef(null)
 
   const [form, setForm] = useState({
-    name: '', cuisine: '', address: '', city: '', state: 'NJ',
+    name: '', cuisine: '', address: '', city: '', state: '',
     zip: '', phone: '', website: '', hours: '', emoji: '🍽️', opentable_url: ''
   })
 
@@ -136,7 +136,7 @@ export default function AddRestaurantPage() {
           name:    p.name || prev.name,
           address: streetNumber ? `${streetNumber} ${streetName}` : streetName,
           city,
-          state:   state || 'NJ',
+          state:   state || '',
           zip,
           phone:   p.formatted_phone_number || '',
           website: p.website ? p.website.replace(/\/$/, '') : '',
@@ -392,7 +392,7 @@ export default function AddRestaurantPage() {
                 <div style={lbl}>State</div>
                 <select value={form.state} onChange={e => update('state', e.target.value)}
                   style={{ ...inp, appearance: 'none', cursor: 'pointer' }}>
-                  {['NJ','NY','CT','PA','DE'].map(s => <option key={s} value={s}>{s}</option>)}
+                  {['AL','AK','AZ','AR','CA','CO','CT','DE','DC','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY'].map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
             </div>
