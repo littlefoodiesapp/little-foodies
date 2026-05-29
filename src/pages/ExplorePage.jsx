@@ -803,21 +803,88 @@ export default function ExplorePage() {
       cachedRestaurants = null
       window.__lf_invalidate_restaurants = false
     }
-    // Only fetch if we don't have cached data
-    if (!cachedRestaurants) {
-      setLoading(true)
-      supabase
-        .from('restaurants')
-        .select('*, amenities(*)')
-        .order('name')
-        .then(({ data, error }) => {
-          if (error) console.error('Error loading restaurants:', error)
-          const list = data || []
-          cachedRestaurants = list
-          setRestaurants(list)
-          setLoading(false)
-        })
+
+    if (cachedRestaurants) {
+      setRestaurants(cachedRestaurants)
+      setLoading(false)
+      return
     }
+
+    let cancelled = false
+    // Safety net — never show loading forever
+    const timeout = setTimeout(() => {
+      if (!cancelled) {
+        setLoading(false)
+        console.warn('Restaurant fetch timed out')
+      }
+    }, 8000)
+
+    async function fetchRestaurants() {
+      try {
+        // Wait for Supabase session to be ready
+        await supabase.auth.getSession()
+        if (cancelled) return
+
+        const { data, error } = await supabase
+          .from('restaurants')
+          .select('*, amenities(*)')
+          .order('name')
+
+        if (cancelled) return
+        if (error) {
+          console.error('Error loading restaurants:', error)
+          // Retry once after 2 seconds on error
+          setTimeout(() => {
+            if (!cancelled) fetchRestaurants()
+          }, 2000)
+          return
+        }
+        const list = data || []
+        cachedRestaurants = list
+        setRestaurants(list)
+        setLoading(false)
+        clearTimeout(timeout)
+      } catch (e) {
+        console.error('Restaurant fetch failed:', e)
+        if (!cancelled) setLoading(false)
+        clearTimeout(timeout)
+      }
+    }
+
+    fetchRestaurants()
+    return () => { cancelled = true; clearTimeout(timeout) }
+  }, [])
+
+  // When returning to app after background, refresh if cache is stale
+  useEffect(() => {
+    let hiddenAt = null
+    function handleVisibility() {
+      if (document.visibilityState === 'hidden') {
+        hiddenAt = Date.now()
+      } else if (document.visibilityState === 'visible') {
+        const hiddenMs = hiddenAt ? Date.now() - hiddenAt : 0
+        // If away for more than 5 minutes, clear cache and re-fetch
+        if (hiddenMs > 5 * 60 * 1000) {
+          cachedRestaurants = null
+          fetchedFavs.current = false
+          setLoading(true)
+          supabase
+            .from('restaurants')
+            .select('*, amenities(*)')
+            .order('name')
+            .then(({ data }) => {
+              const list = data || []
+              cachedRestaurants = list
+              setRestaurants(list)
+              setLoading(false)
+            })
+            .catch(() => setLoading(false))
+        }
+        hiddenAt = null
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibility)
+    return () => document.removeEventListener('visibilitychange', handleVisibility)
   }, [])
 
   useEffect(() => {
