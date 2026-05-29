@@ -61,7 +61,12 @@ export default function ExplorePage() {
   const [activeFilters, setFilters]   = useState(new Set())
   const [loading, setLoading]         = useState(!cachedRestaurants)
   const [search, setSearch]           = useState(() => localStorage.getItem('lf_search') || '')
-  const [geolocating, setGeolocating] = useState(false)
+  const [geolocating, setGeolocating]   = useState(false)
+  const [suggestions, setSuggestions]   = useState([])
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const [searchLabel, setSearchLabel]   = useState(() => localStorage.getItem('lf_search_label') || '')
+  const [lookingUp, setLookingUp]       = useState(false)
+  const zipCoordsCache = {}
   const [hasSearched, setHasSearched] = useState(() => localStorage.getItem('lf_hassearched') === 'true')
   const [radius, setRadius]           = useState(() => Number(localStorage.getItem('lf_radius')) || 5)
   const fetchedFavs = useRef(false)
@@ -103,29 +108,72 @@ export default function ExplorePage() {
 
   function handleSearchChange(val) {
     setSearch(val)
+    setSearchLabel(val)
     localStorage.setItem('lf_search', val)
+    localStorage.setItem('lf_search_label', val)
     if (val.trim().length === 0) {
       setHasSearched(false)
+      setSuggestions([])
+      setShowSuggestions(false)
       localStorage.setItem('lf_hassearched', 'false')
+    } else {
+      clearTimeout(suggestTimer.current)
+      suggestTimer.current = setTimeout(() => fetchSuggestions(val), 300)
     }
   }
 
-  function submitSearch() {
-    if (search.trim().length > 0) {
-      setHasSearched(true)
-      localStorage.setItem('lf_hassearched', 'true')
+  async function submitSearch() {
+    setShowSuggestions(false)
+    const val = search.trim()
+    if (!val) return
+    const isZip = /^\d{5}$/.test(val)
+    // If it's not a zip and we have suggestions, use the first one
+    if (!isZip && suggestions.length > 0) {
+      await selectSuggestion(suggestions[0])
+      return
     }
+    // If it's not a zip and not in our coords, look it up
+    if (!isZip && !ZIP_COORDS[val]) {
+      setLookingUp(true)
+      try {
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(val)}&countrycodes=us&limit=1&format=json&addressdetails=1`,
+          { headers: { 'Accept-Language': 'en' } }
+        )
+        const data = await res.json()
+        if (data[0]?.address?.postcode) {
+          const zip = data[0].address.postcode.split('-')[0]
+          const city = data[0].address?.city || data[0].address?.town || data[0].address?.village || ''
+          const state = data[0].address?.state || ''
+          ZIP_COORDS[zip] = [parseFloat(data[0].lat), parseFloat(data[0].lon)]
+          setSearch(zip)
+          setSearchLabel([city, state, zip].filter(Boolean).join(', '))
+          localStorage.setItem('lf_search', zip)
+        }
+      } catch (e) {}
+      setLookingUp(false)
+    }
+    setHasSearched(true)
+    localStorage.setItem('lf_hassearched', 'true')
   }
 
   function handleQuickSearch(val) {
     setSearch(val)
+    setSearchLabel(val)
     setHasSearched(true)
+    setSuggestions([])
+    setShowSuggestions(false)
     localStorage.setItem('lf_search', val)
+    localStorage.setItem('lf_search_label', val)
     localStorage.setItem('lf_hassearched', 'true')
   }
 
   function clearSearch() {
     setSearch('')
+    setSearchLabel('')
+    setSuggestions([])
+    setShowSuggestions(false)
+    localStorage.removeItem('lf_search_label')
     setHasSearched(false)
     setFilters(new Set())
     localStorage.removeItem('lf_search')
@@ -154,6 +202,62 @@ export default function ExplorePage() {
     }
   }
 
+  // Fetch city/zip suggestions from Nominatim
+  const suggestTimer = useRef(null)
+  async function fetchSuggestions(val) {
+    if (val.length < 2) { setSuggestions([]); setShowSuggestions(false); return }
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(val)}&countrycodes=us&limit=6&format=json&addressdetails=1`,
+        { headers: { 'Accept-Language': 'en' } }
+      )
+      const data = await res.json()
+      const results = data
+        .filter(r => r.address?.postcode)
+        .map(r => ({
+          label: [r.address?.city || r.address?.town || r.address?.village || r.address?.county, r.address?.state].filter(Boolean).join(', '),
+          zip: r.address?.postcode?.split('-')[0],
+          lat: parseFloat(r.lat),
+          lon: parseFloat(r.lon),
+        }))
+        .filter((r, i, arr) => r.label && arr.findIndex(x => x.zip === r.zip) === i) // dedupe by zip
+      setSuggestions(results)
+      setShowSuggestions(results.length > 0)
+    } catch (e) {
+      setSuggestions([])
+    }
+  }
+
+  async function handleSearchInput(val) {
+    setSearch(val)
+    setSearchLabel(val)
+    localStorage.setItem('lf_search', val)
+    localStorage.setItem('lf_search_label', val)
+    // Clear searched state when input changes
+    if (!val.trim()) {
+      localStorage.setItem('lf_hassearched', 'false')
+    }
+    // Debounce suggestions
+    clearTimeout(suggestTimer.current)
+    suggestTimer.current = setTimeout(() => fetchSuggestions(val), 300)
+  }
+
+  async function selectSuggestion(suggestion) {
+    setShowSuggestions(false)
+    setSuggestions([])
+    setLookingUp(false)
+    const label = `${suggestion.label} ${suggestion.zip}`
+    setSearchLabel(label)
+    setSearch(suggestion.zip)
+    localStorage.setItem('lf_search', suggestion.zip)
+    localStorage.setItem('lf_search_label', label)
+    localStorage.setItem('lf_hassearched', 'true')
+    // Cache coords for this zip
+    zipCoordsCache[suggestion.zip] = [suggestion.lat, suggestion.lon]
+    ZIP_COORDS[suggestion.zip] = [suggestion.lat, suggestion.lon]
+    setHasSearched(true)
+  }
+
   async function useMyLocation() {
     if (!navigator.geolocation) {
       alert('Geolocation is not supported by your browser')
@@ -170,8 +274,13 @@ export default function ExplorePage() {
             { headers: { 'Accept-Language': 'en' } }
           )
           const data = await res.json()
-          const zip = data.address?.postcode?.split('-')[0] // Handle ZIP+4 format
+          const zip = data.address?.postcode?.split('-')[0]
           if (zip) {
+            const city = data.address?.city || data.address?.town || data.address?.village || ''
+            const state = data.address?.state || ''
+            const label = [city, state, zip].filter(Boolean).join(', ')
+            setSearchLabel(label)
+            localStorage.setItem('lf_search_label', label)
             handleQuickSearch(zip)
           } else {
             alert('Could not find a zip code for your location. Try entering it manually.')
@@ -224,20 +333,46 @@ export default function ExplorePage() {
           <div style={{ padding: '0 20px 24px' }}>
             <div style={{ position: 'relative' }}>
               <span style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', fontSize: 18, pointerEvents: 'none' }}>🔍</span>
-              <input type="search" value={search}
+              <input type="search" value={searchLabel}
                 onChange={e => handleSearchChange(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && submitSearch()}
-                placeholder="Search by zip code..."
+                onKeyDown={e => {
+                  if (e.key === 'Enter') { setShowSuggestions(false); submitSearch() }
+                  if (e.key === 'Escape') setShowSuggestions(false)
+                }}
+                onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
+                onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                placeholder="City, neighborhood, or zip code…"
                 style={{ width: '100%', padding: '14px 100px 14px 44px', border: '2px solid #f57b46',
                   borderRadius: 14, fontSize: 16, outline: 'none', background: '#fff',
                   boxSizing: 'border-box', ...font, boxShadow: '0 4px 20px rgba(245,123,70,.15)' }}
               />
-              <button onClick={submitSearch}
+              <button onClick={() => { setShowSuggestions(false); submitSearch() }}
                 style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)',
                   padding: '8px 16px', background: '#f57b46', border: 'none', borderRadius: 10,
                   color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', ...font }}>
                 Search
               </button>
+              {/* Autocomplete dropdown */}
+              {showSuggestions && suggestions.length > 0 && (
+                <div style={{ position: 'absolute', top: '100%', left: 0, right: 0,
+                  background: '#fff', border: '1.5px solid #e5e7eb', borderRadius: 14,
+                  boxShadow: '0 8px 24px rgba(0,0,0,.12)', zIndex: 200, marginTop: 6,
+                  overflow: 'hidden' }}>
+                  {suggestions.map((s, i) => (
+                    <button key={i} onMouseDown={() => selectSuggestion(s)}
+                      style={{ width: '100%', padding: '12px 16px', background: 'none',
+                        border: 'none', borderBottom: i < suggestions.length-1 ? '0.5px solid #f3f4f6' : 'none',
+                        textAlign: 'left', cursor: 'pointer', display: 'flex',
+                        alignItems: 'center', gap: 10, ...font }}>
+                      <span style={{ fontSize: 16 }}>📍</span>
+                      <div>
+                        <div style={{ fontSize: 14, fontWeight: 600, color: '#111827' }}>{s.label}</div>
+                        <div style={{ fontSize: 11, color: '#9ca3af' }}>{s.zip}</div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
             <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap', alignItems: 'center' }}>
               <button onClick={useMyLocation} disabled={geolocating}
@@ -304,10 +439,15 @@ export default function ExplorePage() {
             </div>
             <div style={{ position: 'relative' }}>
               <span style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', fontSize: 14, pointerEvents: 'none' }}>🔍</span>
-              <input type="search" value={search}
+              <input type="search" value={searchLabel}
                 onChange={e => handleSearchChange(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && submitSearch()}
-                placeholder="Search by zip code..."
+                onKeyDown={e => {
+                  if (e.key === 'Enter') { setShowSuggestions(false); submitSearch() }
+                  if (e.key === 'Escape') setShowSuggestions(false)
+                }}
+                onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
+                onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                placeholder="City, neighborhood, or zip code…"
                 style={{ width: '100%', padding: '9px 70px 9px 33px', border: '1.5px solid #f57b46',
                   borderRadius: 10, fontSize: 16, outline: 'none', background: '#fff',
                   boxSizing: 'border-box', ...font }}
@@ -322,6 +462,27 @@ export default function ExplorePage() {
                     background: '#e5e7eb', border: 'none', borderRadius: '50%', width: 20, height: 20,
                     cursor: 'pointer', fontSize: 11, color: '#6b7280',
                     display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+              )}
+              {/* Autocomplete dropdown - compact */}
+              {showSuggestions && suggestions.length > 0 && (
+                <div style={{ position: 'absolute', top: '100%', left: 0, right: 0,
+                  background: '#fff', border: '1.5px solid #e5e7eb', borderRadius: 12,
+                  boxShadow: '0 8px 24px rgba(0,0,0,.12)', zIndex: 200, marginTop: 4,
+                  overflow: 'hidden' }}>
+                  {suggestions.map((s, i) => (
+                    <button key={i} onMouseDown={() => selectSuggestion(s)}
+                      style={{ width: '100%', padding: '10px 14px', background: 'none',
+                        border: 'none', borderBottom: i < suggestions.length-1 ? '0.5px solid #f3f4f6' : 'none',
+                        textAlign: 'left', cursor: 'pointer', display: 'flex',
+                        alignItems: 'center', gap: 8, ...font }}>
+                      <span style={{ fontSize: 14 }}>📍</span>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: '#111827' }}>{s.label}</div>
+                        <div style={{ fontSize: 11, color: '#9ca3af' }}>{s.zip}</div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
               )}
             </div>
           </div>
