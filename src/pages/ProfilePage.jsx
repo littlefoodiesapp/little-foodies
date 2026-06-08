@@ -215,8 +215,43 @@ export default function ProfilePage() {
   }
 
   if (loading) return (
-    <div style={{ ...font, padding: 32, textAlign: 'center', color: '#6b7280' }}>
-      Loading profile...
+    <div style={{ ...font, paddingBottom: 100 }}>
+      <style>{`@keyframes shimmer { 0% { background-position: -200% 0 } 100% { background-position: 200% 0 } }`}</style>
+      {/* Hero skeleton */}
+      <div style={{ background: 'linear-gradient(135deg, #f0c4b0 0%, #f0b8d0 100%)', padding: '28px 20px 24px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16 }}>
+          <div style={{ width: 72, height: 72, borderRadius: '50%',
+            background: 'linear-gradient(90deg, rgba(255,255,255,.3) 25%, rgba(255,255,255,.5) 50%, rgba(255,255,255,.3) 75%)',
+            backgroundSize: '200% 100%', animation: 'shimmer 1.5s infinite' }} />
+          <div style={{ flex: 1 }}>
+            <div style={{ height: 22, width: '60%', borderRadius: 8, marginBottom: 8,
+              background: 'linear-gradient(90deg, rgba(255,255,255,.3) 25%, rgba(255,255,255,.5) 50%, rgba(255,255,255,.3) 75%)',
+              backgroundSize: '200% 100%', animation: 'shimmer 1.5s infinite' }} />
+            <div style={{ height: 14, width: '40%', borderRadius: 6,
+              background: 'linear-gradient(90deg, rgba(255,255,255,.3) 25%, rgba(255,255,255,.5) 50%, rgba(255,255,255,.3) 75%)',
+              backgroundSize: '200% 100%', animation: 'shimmer 1.5s infinite' }} />
+          </div>
+        </div>
+        <div style={{ height: 8, borderRadius: 4,
+          background: 'linear-gradient(90deg, rgba(255,255,255,.3) 25%, rgba(255,255,255,.5) 50%, rgba(255,255,255,.3) 75%)',
+          backgroundSize: '200% 100%', animation: 'shimmer 1.5s infinite' }} />
+      </div>
+      {/* Tabs skeleton */}
+      <div style={{ display: 'flex', borderBottom: '0.5px solid #e5e7eb', background: '#fff' }}>
+        {[1,2,3].map(i => (
+          <div key={i} style={{ flex: 1, height: 40, margin: 8,
+            background: 'linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%)',
+            backgroundSize: '200% 100%', animation: 'shimmer 1.5s infinite', borderRadius: 6 }} />
+        ))}
+      </div>
+      {/* Stats grid skeleton */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, padding: 16 }}>
+        {[1,2,3,4,5,6].map(i => (
+          <div key={i} style={{ height: 90, borderRadius: 14,
+            background: 'linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%)',
+            backgroundSize: '200% 100%', animation: 'shimmer 1.5s infinite' }} />
+        ))}
+      </div>
     </div>
   )
 

@@ -1645,6 +1645,37 @@ export default function ExplorePage() {
               : visible.length + ' restaurant' + (visible.length !== 1 ? 's' : '') + ' within ' + radius + ' miles of ' + search}
           </div>
 
+          {/* Skeleton cards while loading */}
+          {loading && hasSearched && (
+            <div style={{ padding: '0 0 16px' }}>
+              <style>{`@keyframes shimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }`}</style>
+              {[1,2,3,4].map(i => (
+                <div key={i} style={{ background: '#fff', borderRadius: 16,
+                  overflow: 'hidden', marginBottom: 14,
+                  border: '0.5px solid #e5e7eb' }}>
+                  <div style={{ height: 140,
+                    background: 'linear-gradient(90deg, #f0f0f0 25%, #e8e8e8 50%, #f0f0f0 75%)',
+                    backgroundSize: '200% 100%', animation: 'shimmer 1.5s infinite' }} />
+                  <div style={{ padding: '12px 14px' }}>
+                    <div style={{ height: 18, width: '65%', borderRadius: 6, marginBottom: 8,
+                      background: 'linear-gradient(90deg, #f0f0f0 25%, #e8e8e8 50%, #f0f0f0 75%)',
+                      backgroundSize: '200% 100%', animation: 'shimmer 1.5s infinite' }} />
+                    <div style={{ height: 12, width: '40%', borderRadius: 6, marginBottom: 10,
+                      background: 'linear-gradient(90deg, #f0f0f0 25%, #e8e8e8 50%, #f0f0f0 75%)',
+                      backgroundSize: '200% 100%', animation: 'shimmer 1.5s infinite' }} />
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      {[1,2,3].map(j => (
+                        <div key={j} style={{ width: 32, height: 32, borderRadius: '50%',
+                          background: 'linear-gradient(90deg, #f0f0f0 25%, #e8e8e8 50%, #f0f0f0 75%)',
+                          backgroundSize: '200% 100%', animation: 'shimmer 1.5s infinite' }} />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
           {/* No results */}
           {noResults && (
             <div style={{ margin: '0 16px', background: '#fff', border: '0.5px solid #e5e7eb',

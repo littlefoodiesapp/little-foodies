@@ -441,7 +441,40 @@ export default function RestaurantPage() {
     setUploading(false)
   }
 
-  if (loading) return <div style={{ ...font, padding: 32, color: '#6b7280' }}>Loading...</div>
+  if (loading) return (
+    <div style={{ ...font, paddingBottom: 100 }}>
+      {/* Skeleton header */}
+      <div style={{ height: 220, background: 'linear-gradient(135deg, #f0f0f0 0%, #e8e8e8 100%)' }}>
+        <div style={{ height: '100%', background: 'linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%)',
+          backgroundSize: '200% 100%', animation: 'shimmer 1.5s infinite' }} />
+      </div>
+      <div style={{ padding: '20px 16px' }}>
+        {/* Restaurant name skeleton */}
+        <div style={{ height: 28, width: '70%', background: '#f0f0f0', borderRadius: 8, marginBottom: 10,
+          background: 'linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%)',
+          backgroundSize: '200% 100%', animation: 'shimmer 1.5s infinite' }} />
+        <div style={{ height: 16, width: '40%', background: '#f0f0f0', borderRadius: 6, marginBottom: 20,
+          background: 'linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%)',
+          backgroundSize: '200% 100%', animation: 'shimmer 1.5s infinite' }} />
+        {/* Amenity strip skeleton */}
+        <div style={{ display: 'flex', gap: 12, marginBottom: 20 }}>
+          {[1,2,3,4,5].map(i => (
+            <div key={i} style={{ width: 52, height: 64, borderRadius: 12, background: '#f0f0f0',
+              backgroundSize: '200% 100%', animation: 'shimmer 1.5s infinite',
+              background: 'linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%)' }} />
+          ))}
+        </div>
+        {/* Info rows skeleton */}
+        {[1,2,3].map(i => (
+          <div key={i} style={{ height: 16, width: i === 2 ? '55%' : '80%', background: '#f0f0f0',
+            borderRadius: 6, marginBottom: 12,
+            background: 'linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%)',
+            backgroundSize: '200% 100%', animation: 'shimmer 1.5s infinite' }} />
+        ))}
+      </div>
+      <style>{`@keyframes shimmer { 0% { background-position: -200% 0 } 100% { background-position: 200% 0 } }`}</style>
+    </div>
+  )
   if (!restaurant) return <div style={{ ...font, padding: 32 }}>Restaurant not found.</div>
 
   const amenityMap    = Object.fromEntries(amenities.map(a => [a.amenity_key, a]))
