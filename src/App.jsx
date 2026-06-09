@@ -104,7 +104,10 @@ export default function App() {
         }}>
           <div style={{ maxWidth: 480, width: '100%', margin: '0 auto',
             display: 'flex', alignItems: 'center' }}>
-            <Link to="/" style={{
+            <Link to="/" onClick={() => {
+              ['lf_search','lf_search_label','lf_hassearched','lf_search_state'].forEach(k => localStorage.removeItem(k))
+              window.dispatchEvent(new Event('lf-go-home'))
+            }} style={{
               flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',
               gap: 2, textDecoration: 'none', paddingBottom: 4,
               color: loc.pathname === '/' ? '#f57b46' : '#9ca3af',

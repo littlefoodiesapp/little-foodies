@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="description" content="Find family-friendly restaurants near you — high chairs, kids menus, changing tables verified by real parents." />
     <meta name="theme-color" content="#f57b46" />
     <title>Little Foodies</title>
@@ -83,6 +83,9 @@
         min-height: 100vh;
         background: #ffffff;
         box-shadow: 0 0 40px rgba(0,0,0,.08);
+        /* Keep content clear of the iPhone status bar / notch and home indicator */
+        padding-top: env(safe-area-inset-top);
+        padding-bottom: env(safe-area-inset-bottom);
       }
     </style>
 

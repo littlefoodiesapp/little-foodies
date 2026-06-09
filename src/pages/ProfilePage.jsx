@@ -693,9 +693,8 @@ export default function ProfilePage() {
                       { val: 'general',    label: '💬 General' },
                     ].map(t => (
                       <button key={t.val} onClick={() => setFeedbackType(t.val)}
-                        style={{ padding: '7px 14px', borderRadius: 20, fontSize: 12,
-                          fontWeight: 600, cursor: 'pointer', border: 'none',
-                          background: feedbackType === t.val ? '#fff3ee' : '#f3f4f6',
+                         style={{ padding: '7px 14px', borderRadius: 20, fontSize: 12,
+                           fontWeight: 600, cursor: 'pointer',
                           color: feedbackType === t.val ? '#c2410c' : '#6b7280',
                           border: feedbackType === t.val ? '1.5px solid #fdc9b0' : '1.5px solid transparent',
                           ...font }}>

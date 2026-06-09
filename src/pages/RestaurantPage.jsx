@@ -91,6 +91,32 @@ export default function RestaurantPage() {
 
   useEffect(() => { loadAll() }, [id])
 
+  // Swipe right from the left edge to go back (like iOS), matching the Back button
+  useEffect(() => {
+    let startX = null, startY = null, startT = 0
+    function onStart(e) {
+      const t = e.touches[0]
+      if (t.clientX > 40) { startX = null; return } // only from the left edge
+      startX = t.clientX; startY = t.clientY; startT = Date.now()
+    }
+    function onEnd(e) {
+      if (startX == null) return
+      const t = e.changedTouches[0]
+      const dx = t.clientX - startX
+      const dy = Math.abs(t.clientY - startY)
+      if (dx > 70 && dy < 50 && Date.now() - startT < 600) {
+        window.history.back()
+      }
+      startX = null
+    }
+    window.addEventListener('touchstart', onStart, { passive: true })
+    window.addEventListener('touchend', onEnd, { passive: true })
+    return () => {
+      window.removeEventListener('touchstart', onStart)
+      window.removeEventListener('touchend', onEnd)
+    }
+  }, [])
+
   async function loadAll() {
     // Check module-level cache first
     const cached = restaurantCache[id]
@@ -450,10 +476,10 @@ export default function RestaurantPage() {
       </div>
       <div style={{ padding: '20px 16px' }}>
         {/* Restaurant name skeleton */}
-        <div style={{ height: 28, width: '70%', background: '#f0f0f0', borderRadius: 8, marginBottom: 10,
+        <div style={{ height: 28, width: '70%', borderRadius: 8, marginBottom: 10,
           background: 'linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%)',
           backgroundSize: '200% 100%', animation: 'shimmer 1.5s infinite' }} />
-        <div style={{ height: 16, width: '40%', background: '#f0f0f0', borderRadius: 6, marginBottom: 20,
+        <div style={{ height: 16, width: '40%', borderRadius: 6, marginBottom: 20,
           background: 'linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%)',
           backgroundSize: '200% 100%', animation: 'shimmer 1.5s infinite' }} />
         {/* Amenity strip skeleton */}
@@ -574,11 +600,11 @@ export default function RestaurantPage() {
 
       {/* Info */}
       <div style={{ padding: '16px 16px 14px', background: '#fff', borderBottom: '0.5px solid #f3f4f6' }}>
-        <div style={{ fontSize: 22, fontWeight: 700, color: '#111827', marginBottom: 4,
-          fontFamily: "'IntroRust', 'Georgia', serif" }}>
+        <div style={{ fontSize: 23, fontWeight: 800, color: '#111827', marginBottom: 4,
+          letterSpacing: '-0.01em', ...font }}>
           {restaurant.name}
         </div>
-        <div style={{ fontSize: 13, color: '#6b7280', marginBottom: 6 }}>{restaurant.cuisine}</div>
+        <div style={{ fontSize: 13, color: '#9ca3af', marginBottom: 6 }}>{restaurant.cuisine}</div>
         {restaurant.address && (
           <div style={{ fontSize: 13, color: '#6b7280', marginBottom: 6 }}>
             📍 {restaurant.address}{restaurant.city ? ', ' + restaurant.city : ''}{restaurant.state ? ', ' + restaurant.state : ''}
@@ -607,45 +633,40 @@ export default function RestaurantPage() {
           </details>
         )}
         {restaurant.phone && (
-          <div style={{ fontSize: 13, color: '#f57b46', marginTop: 6 }}>📞 {restaurant.phone}</div>
+          <a href={'tel:' + restaurant.phone.replace(/[^0-9]/g, '')}
+            style={{ display: 'inline-block', fontSize: 13, color: '#f57b46',
+              marginTop: 6, textDecoration: 'none', fontWeight: 600 }}>
+            📞 {restaurant.phone}
+          </a>
         )}
 
-        {/* Reservation button */}
-        <div style={{ marginTop: 14 }}>
-          {restaurant.opentable_url ? (
-            <a href={restaurant.opentable_url} target="_blank" rel="noopener noreferrer"
-              onClick={() => track.makeReservation(restaurant.name)}
-              style={{ display: 'flex', alignItems: 'center', gap: 10,
-                padding: '11px 14px', background: '#DA3743',
-                borderRadius: 10, textDecoration: 'none',
-                boxShadow: '0 2px 8px rgba(218,55,67,.25)' }}>
-              <span style={{ fontSize: 18 }}>📅</span>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: '#fff' }}>
-                  Make a reservation
+        {/* Reservation button — only when the restaurant has an OpenTable or Resy page */}
+        {(() => {
+          const resUrl = restaurant.opentable_url || restaurant.resy_url
+          if (!resUrl) return null
+          const provider = restaurant.opentable_url ? 'OpenTable' : 'Resy'
+          return (
+            <div style={{ marginTop: 14 }}>
+              <a href={resUrl} target="_blank" rel="noopener noreferrer"
+                onClick={() => track.makeReservation(restaurant.name)}
+                style={{ display: 'flex', alignItems: 'center', gap: 10,
+                  padding: '12px 14px', background: '#f57b46',
+                  borderRadius: 12, textDecoration: 'none',
+                  boxShadow: '0 2px 8px rgba(245,123,70,.25)' }}>
+                <span style={{ fontSize: 18 }}>📅</span>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>
+                    Make a reservation
+                  </div>
+                  <div style={{ fontSize: 10, color: 'rgba(255,255,255,.85)' }}>
+                    Book on {provider}
+                  </div>
                 </div>
-                <div style={{ fontSize: 10, color: 'rgba(255,255,255,.8)' }}>
-                  Opens reservation page
-                </div>
-              </div>
-              <span style={{ marginLeft: 'auto', color: 'rgba(255,255,255,.7)', fontSize: 16 }}>›</span>
-            </a>
-          ) : restaurant.phone ? (
-            <a href={'tel:' + restaurant.phone.replace(/[^0-9]/g, '')}
-              style={{ display: 'flex', alignItems: 'center', gap: 10,
-                padding: '11px 14px', background: '#fff',
-                border: '1.5px solid #e5e7eb', borderRadius: 10, textDecoration: 'none' }}>
-              <span style={{ fontSize: 18 }}>📞</span>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: '#374151' }}>
-                  Call to reserve
-                </div>
-                <div style={{ fontSize: 10, color: '#9ca3af' }}>{restaurant.phone}</div>
-              </div>
-              <span style={{ marginLeft: 'auto', color: '#9ca3af', fontSize: 16 }}>›</span>
-            </a>
-          ) : null}
-        </div>
+                <span style={{ marginLeft: 'auto', color: 'rgba(255,255,255,.7)', fontSize: 16 }}>›</span>
+              </a>
+            </div>
+          )
+        })()}
       </div>
 
       {/* Amenity summary strip */}
@@ -654,52 +675,45 @@ export default function RestaurantPage() {
           textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 12 }}>
           Family amenities
         </div>
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
           {AMENITIES.map(am => {
             const data       = amenityMap[am.id]
             const totalVotes = data ? (data.yes_votes + data.no_votes) : 0
-            // Calculate verified client-side (threshold = 1 vote)
             const isVer      = totalVotes >= 1
             const likelyYes  = data && data.yes_votes >= data.no_votes && data.yes_votes > 0
             const confirmed  = isVer && likelyYes
             const denied     = isVer && !likelyYes
-            const hasVotes   = totalVotes > 0
+            const tappable   = am.id === 'kidsmenu' && confirmed
             return (
               <div key={am.id}
                 onClick={am.id === 'kidsmenu' ? () => setShowKidsMenu(true) : undefined}
-                style={{ display: 'flex', flexDirection: 'column',
-                alignItems: 'center', gap: 4, minWidth: 60,
-                cursor: am.id === 'kidsmenu' ? 'pointer' : 'default' }}>
-                {am.id === 'kidsmenu' && confirmed && (
-                  <div style={{ fontSize: 8, color: '#f57b46', fontWeight: 700,
-                    textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: -2 }}>
-                    View menu
-                  </div>
-                )}
-                <div style={{ width: 52, height: 52, borderRadius: 14,
-                  background: confirmed ? am.color : '#f3f4f6',
-                  border: confirmed ? '1.5px solid ' + am.border : '1.5px solid #e5e7eb',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  flexDirection: 'column', gap: 1,
-                  filter: confirmed ? 'none' : 'grayscale(100%)',
-                  opacity: confirmed ? 1 : denied ? 0.35 : 0.45 }}>
-                  <span style={{ fontSize: 20 }}>{am.icon}</span>
+                style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
+                  cursor: am.id === 'kidsmenu' ? 'pointer' : 'default' }}>
+                <div style={{ position: 'relative', width: 56, height: 56, borderRadius: 16,
+                  background: confirmed ? am.color : '#f7f8fa',
+                  border: '1.5px solid ' + (confirmed ? am.border : '#eef0f3'),
+                  display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <span style={{ fontSize: 24, opacity: confirmed ? 1 : 0.4 }}>{am.icon}</span>
                   {confirmed && (
-                    <span style={{ fontSize: 11, fontWeight: 600, color: am.text }}>✓</span>
+                    <span style={{ position: 'absolute', top: -5, right: -5, width: 18, height: 18,
+                      borderRadius: '50%', background: '#10b981', color: '#fff', fontSize: 10,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      border: '2px solid #fff' }}>✓</span>
                   )}
                   {denied && (
-                    <span style={{ fontSize: 11, fontWeight: 600, color: '#9ca3af' }}>✗</span>
+                    <span style={{ position: 'absolute', top: -5, right: -5, width: 18, height: 18,
+                      borderRadius: '50%', background: '#d1d5db', color: '#fff', fontSize: 10,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      border: '2px solid #fff' }}>✕</span>
                   )}
                 </div>
-                <span style={{ fontSize: 9, color: confirmed ? am.text : '#9ca3af',
-                  textAlign: 'center', lineHeight: 1.3, maxWidth: 60,
-                  fontWeight: confirmed ? 600 : 400 }}>
+                <span style={{ fontSize: 11, textAlign: 'center', lineHeight: 1.25,
+                  color: confirmed ? '#111827' : '#9ca3af', fontWeight: confirmed ? 600 : 500 }}>
                   {am.label}
                 </span>
-                {/* Vote count under each icon */}
-                <span style={{ fontSize: 8, color: confirmed ? '#00a994' : '#9ca3af',
-                  textAlign: 'center', fontWeight: confirmed ? 700 : 400 }}>
-                  {confirmed ? '✓ Verified' : denied ? '✗ Not here' : hasVotes ? 'Voted' : '0/1 voted'}
+                <span style={{ fontSize: 9.5, textAlign: 'center', fontWeight: 600,
+                  color: tappable ? '#f57b46' : confirmed ? '#10b981' : denied ? '#9ca3af' : '#cbd0d6' }}>
+                  {tappable ? 'View menu ›' : confirmed ? 'Verified' : denied ? 'Not here' : 'Unconfirmed'}
                 </span>
               </div>
             )
@@ -1218,34 +1232,40 @@ export default function RestaurantPage() {
       )}
 
       {/* Allergen Section */}
-      <div style={{ padding: '14px 16px', background: '#fff', borderBottom: '0.5px solid #f3f4f6', marginTop: 8 }}>
+      <div style={{ padding: '16px', background: '#fff', borderBottom: '0.5px solid #f3f4f6', marginTop: 8 }}>
         <div style={{ fontSize: 11, fontWeight: 600, color: '#374151',
-          textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4 }}>
-          ⚠️ Allergen info
+          textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 10 }}>
+          Allergen info
         </div>
-        <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 12, lineHeight: 1.6 }}>
-          Community-reported · always confirm with the restaurant directly
+
+        {/* Safety callout — allergies are serious, so keep this prominent */}
+        <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start',
+          background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 12,
+          padding: '10px 12px', marginBottom: 14 }}>
+          <span style={{ fontSize: 15, lineHeight: 1.2 }}>⚠️</span>
+          <span style={{ fontSize: 11.5, color: '#92722e', lineHeight: 1.5 }}>
+            Community-reported and not guaranteed. <strong>Always confirm directly with the restaurant</strong> if anyone in your party has a food allergy.
+          </span>
         </div>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+
+        {/* Allergen badges */}
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
           {ALLERGENS.map(al => {
             const data      = allergenMap[al.id]
             const isVer     = data?.is_verified
             const likelyYes = data && data.yes_votes >= data.no_votes && data.yes_votes > 0
             const confirmed = isVer && likelyYes
             const denied    = isVer && !likelyYes
-            const noData    = !data
             return (
               <div key={al.id} style={{ display: 'flex', alignItems: 'center', gap: 6,
                 padding: '6px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600,
-                background: confirmed ? al.color : denied ? '#f3f4f6' : '#fafafa',
-                border: '1.5px solid ' + (confirmed ? al.border : denied ? '#d1d5db' : '#e5e7eb'),
-                color: confirmed ? al.text : denied ? '#9ca3af' : '#d1d5db',
-                opacity: denied ? 0.6 : 1 }}>
-                <span>{al.icon}</span>
+                background: confirmed ? al.color : '#f7f8fa',
+                border: '1.5px solid ' + (confirmed ? al.border : '#eef0f3'),
+                color: confirmed ? al.text : '#9ca3af' }}>
+                <span style={{ opacity: confirmed ? 1 : 0.45 }}>{al.icon}</span>
                 <span>{al.label}</span>
-                {confirmed && <span style={{ fontSize: 10 }}>✓</span>}
-                {denied && <span style={{ fontSize: 10 }}>✗</span>}
-                {noData && <span style={{ fontSize: 10, color: '#d1d5db' }}>?</span>}
+                {confirmed && <span style={{ fontSize: 11 }}>✓</span>}
+                {denied && <span style={{ fontSize: 11 }}>✕</span>}
               </div>
             )
           })}
