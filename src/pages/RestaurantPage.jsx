@@ -68,6 +68,7 @@ export default function RestaurantPage() {
   const [reviewPhotos, setReviewPhotos]     = useState([])
   const [uploadingReviewPhoto, setUploadingReviewPhoto] = useState(false)
   const [showReportModal, setShowReportModal] = useState(false)
+  const [reportKind, setReportKind]         = useState('amenity') // 'amenity' | 'allergen'
   const [reportAmenity, setReportAmenity]   = useState(null)
   const [reportReason, setReportReason]     = useState('')
   const [reportDetails, setReportDetails]   = useState('')
@@ -273,21 +274,34 @@ export default function RestaurantPage() {
     if (!reportReason) return
     setSubmittingReport(true)
     try {
-      await supabase.from('amenity_reports').insert({
-        restaurant_id: id,
-        restaurant_name: restaurant?.name,
-        amenity_key: reportAmenity?.id,
-        reason: reportReason,
-        details: reportDetails.trim() || null,
-        reported_by: user?.id,
-        status: 'pending'
-      })
+      if (reportKind === 'allergen') {
+        await supabase.from('allergen_reports').insert({
+          restaurant_id: id,
+          restaurant_name: restaurant?.name,
+          allergen_key: reportAmenity?.id,
+          reason: reportReason,
+          details: reportDetails.trim() || null,
+          reported_by: user?.id,
+          status: 'pending'
+        })
+      } else {
+        await supabase.from('amenity_reports').insert({
+          restaurant_id: id,
+          restaurant_name: restaurant?.name,
+          amenity_key: reportAmenity?.id,
+          reason: reportReason,
+          details: reportDetails.trim() || null,
+          reported_by: user?.id,
+          status: 'pending'
+        })
+      }
       showToast('Report submitted — thank you! 🙏')
     } catch (e) {
       showToast('Could not submit report', false)
     }
     setSubmittingReport(false)
     setShowReportModal(false)
+    setReportKind('amenity')
     setReportReason('')
     setReportDetails('')
     setReportAmenity(null)
@@ -722,7 +736,7 @@ export default function RestaurantPage() {
         {/* Always-visible report link */}
         {user && (
           <div style={{ marginTop: 10, textAlign: 'right' }}>
-            <button onClick={() => { setReportAmenity(null); setShowReportModal(true) }}
+            <button onClick={() => { setReportKind('amenity'); setReportAmenity(null); setShowReportModal(true) }}
               style={{ background: 'none', border: 'none', fontSize: 11,
                 color: '#9ca3af', cursor: 'pointer', fontWeight: 500,
                 ...font, textDecoration: 'underline' }}>
@@ -830,7 +844,7 @@ export default function RestaurantPage() {
                         {likedYes ? '✓ Yes' : '✗ No'} · {total} vote{total !== 1 ? 's' : ''}
                       </span>
                       {user && (
-                        <button onClick={() => { setReportAmenity(am); setShowReportModal(true) }}
+                        <button onClick={() => { setReportKind('amenity'); setReportAmenity(am); setShowReportModal(true) }}
                           style={{ background: 'none', border: 'none', fontSize: 10,
                             color: '#9ca3af', cursor: 'pointer', padding: '2px 4px',
                             fontWeight: 500, ...font, textDecoration: 'underline' }}>
@@ -1098,22 +1112,22 @@ export default function RestaurantPage() {
                 style={{ background: '#f3f4f6', border: 'none', borderRadius: '50%',
                   width: 32, height: 32, cursor: 'pointer', fontSize: 16 }}>✕</button>
             </div>
-            {/* Amenity picker — shown when opened from general report button */}
+            {/* Picker — shown when opened from a general report button */}
             {!reportAmenity ? (
               <div style={{ marginBottom: 16 }}>
                 <div style={{ fontSize: 11, fontWeight: 600, color: '#374151',
                   textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 8 }}>
-                  Which amenity?
+                  {reportKind === 'allergen' ? 'Which allergen?' : 'Which amenity?'}
                 </div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 4 }}>
-                  {AMENITIES.map(am => (
-                    <button key={am.id} onClick={() => setReportAmenity(am)}
+                  {(reportKind === 'allergen' ? ALLERGENS : AMENITIES).map(item => (
+                    <button key={item.id} onClick={() => setReportAmenity(item)}
                       style={{ padding: '7px 12px', borderRadius: 20, fontSize: 12,
                         border: '1.5px solid #e5e7eb', background: '#f9fafb',
                         cursor: 'pointer', fontFamily: "'Montserrat', sans-serif",
                         fontWeight: 500, color: '#374151',
                         display: 'flex', alignItems: 'center', gap: 5 }}>
-                      {am.icon} {am.label}
+                      {item.icon} {item.label}
                     </button>
                   ))}
                   <button onClick={() => setReportAmenity({ id: 'other', icon: '📝', label: 'Other' })}
@@ -1148,7 +1162,7 @@ export default function RestaurantPage() {
               {[
                 'Information is incorrect',
                 'Restaurant has changed',
-                'This amenity no longer exists',
+                reportKind === 'allergen' ? 'This is no longer accurate' : 'This amenity no longer exists',
                 'Was never accurate',
                 'Other',
               ].map(r => (
@@ -1309,6 +1323,14 @@ export default function RestaurantPage() {
               </div>
             )
           })}
+        </div>
+
+        <div style={{ borderTop: '0.5px solid #f3f4f6', paddingTop: 12, marginTop: 4, textAlign: 'right' }}>
+          <button onClick={() => { setReportKind('allergen'); setReportAmenity(null); setShowReportModal(true) }}
+            style={{ background: 'none', border: 'none', cursor: 'pointer',
+              fontSize: 11, color: '#9ca3af', fontWeight: 600, textDecoration: 'underline', ...font }}>
+            🚩 Report an allergen inaccuracy
+          </button>
         </div>
       </div>
 

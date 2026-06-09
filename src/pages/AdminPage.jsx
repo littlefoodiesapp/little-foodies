@@ -47,6 +47,8 @@ export default function AdminPage() {
   const [photoReports, setPhotoReports] = useState([])
   // Amenity Reports
   const [amenityReports, setAmenityReports] = useState([])
+  // Allergen Reports
+  const [allergenReports, setAllergenReports] = useState([])
   const [fixingReport, setFixingReport]     = useState(null) // report being fixed
   const [fixVote, setFixVote]               = useState(null) // 'yes' or 'no'
   const [savingFix, setSavingFix]           = useState(false)
@@ -78,6 +80,7 @@ export default function AdminPage() {
     loadFeedback()
     loadPhotoReports()
     loadAmenityReports()
+    loadAllergenReports()
     setLoading(false)
   }
 
@@ -126,10 +129,25 @@ export default function AdminPage() {
     setAmenityReports(prev => prev.map(r => r.id === id ? { ...r, status } : r))
   }
 
+  async function loadAllergenReports() {
+    const { data } = await supabase
+      .from('allergen_reports')
+      .select('*, profiles(display_name)')
+      .order('created_at', { ascending: false })
+    setAllergenReports(data || [])
+  }
+
+  async function resolveAllergenReport(id, status) {
+    await supabase.from('allergen_reports').update({ status }).eq('id', id)
+    setAllergenReports(prev => prev.map(r => r.id === id ? { ...r, status } : r))
+  }
+
   async function fixAmenity() {
     if (!fixingReport || !fixVote) return
     setSavingFix(true)
-    const { restaurant_id, amenity_key } = fixingReport
+    const isAllergen = fixingReport.kind === 'allergen'
+    const key = isAllergen ? fixingReport.allergen_key : fixingReport.amenity_key
+    const { restaurant_id } = fixingReport
 
     // Get restaurant_id if not on report
     let restId = restaurant_id
@@ -143,28 +161,40 @@ export default function AdminPage() {
       const yes = fixVote === 'yes' ? 1 : 0
       const no  = fixVote === 'no'  ? 1 : 0
 
-      // Upsert the amenity row
-      await supabase.from('amenities').upsert({
-        restaurant_id: restId,
-        amenity_key,
-        yes_votes: yes,
-        no_votes: no,
-        is_verified: true,
-      }, { onConflict: 'restaurant_id,amenity_key' })
-
-      // Clear any existing votes so users can't change it
-      await supabase.from('amenity_votes')
-        .delete()
-        .eq('restaurant_id', restId)
-        .eq('amenity_key', amenity_key)
+      if (isAllergen) {
+        await supabase.from('allergens').upsert({
+          restaurant_id: restId,
+          allergen_key: key,
+          yes_votes: yes,
+          no_votes: no,
+          is_verified: true,
+        }, { onConflict: 'restaurant_id,allergen_key' })
+        await supabase.from('allergen_votes')
+          .delete()
+          .eq('restaurant_id', restId)
+          .eq('allergen_key', key)
+      } else {
+        await supabase.from('amenities').upsert({
+          restaurant_id: restId,
+          amenity_key: key,
+          yes_votes: yes,
+          no_votes: no,
+          is_verified: true,
+        }, { onConflict: 'restaurant_id,amenity_key' })
+        await supabase.from('amenity_votes')
+          .delete()
+          .eq('restaurant_id', restId)
+          .eq('amenity_key', key)
+      }
     }
 
     // Mark report resolved
-    await resolveAmenityReport(fixingReport.id, 'resolved')
+    if (isAllergen) await resolveAllergenReport(fixingReport.id, 'resolved')
+    else await resolveAmenityReport(fixingReport.id, 'resolved')
     setSavingFix(false)
     setFixingReport(null)
     setFixVote(null)
-    showToast('Amenity fixed & report resolved ✓')
+    showToast(isAllergen ? 'Allergen fixed & report resolved ✓' : 'Amenity fixed & report resolved ✓')
   }
 
   async function loadPhotoReports() {
@@ -414,7 +444,7 @@ export default function AdminPage() {
           { id: 'events',      label: '🎉 Events' },
           { id: 'claims',      label: `🔑 Claims${claims.filter(c => c.status === 'pending').length > 0 ? ` (${claims.filter(c => c.status === 'pending').length})` : ''}` },
           { id: 'feedback',    label: `💬 Feedback${feedback.length > 0 ? ` (${feedback.length})` : ''}` },
-          { id: 'reports',     label: `🚩 Reports${(photoReports.filter(r => r.status === 'pending').length + amenityReports.filter(r => r.status === 'pending').length) > 0 ? ` (${photoReports.filter(r => r.status === 'pending').length + amenityReports.filter(r => r.status === 'pending').length})` : ''}` },
+          { id: 'reports',     label: `🚩 Reports${(photoReports.filter(r => r.status === 'pending').length + amenityReports.filter(r => r.status === 'pending').length + allergenReports.filter(r => r.status === 'pending').length) > 0 ? ` (${photoReports.filter(r => r.status === 'pending').length + amenityReports.filter(r => r.status === 'pending').length + allergenReports.filter(r => r.status === 'pending').length})` : ''}` },
         ].map(t => (
           <button key={t.id} onClick={() => setActiveTab(t.id)}
             style={{ flex: 1, padding: '12px 0', background: 'none', border: 'none',
@@ -838,6 +868,60 @@ export default function AdminPage() {
             ))
           )}
 
+          {/* Allergen Reports */}
+          <div style={{ fontSize: 12, fontWeight: 700, color: '#374151',
+            textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 10, marginTop: 8 }}>
+            🌿 Allergen Inaccuracy Reports ({allergenReports.filter(r => r.status === 'pending').length} pending)
+          </div>
+          {allergenReports.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '20px 0', color: '#9ca3af', fontSize: 13, ...font, marginBottom: 24 }}>
+              No allergen reports yet 🎉
+            </div>
+          ) : (
+            allergenReports.map(report => (
+              <div key={report.id} style={{ background: '#fff', border: '0.5px solid #e5e7eb',
+                borderRadius: 14, padding: '12px 14px', marginBottom: 10 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: '#374151' }}>
+                    {report.restaurant_name} · {report.allergen_key}
+                  </div>
+                  <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 20, fontWeight: 600,
+                    background: report.status === 'pending' ? '#fff3ee' : report.status === 'resolved' ? '#e6f7f5' : '#f3f4f6',
+                    color: report.status === 'pending' ? '#f57b46' : report.status === 'resolved' ? '#065f55' : '#6b7280' }}>
+                    {report.status}
+                  </span>
+                </div>
+                <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 4 }}>
+                  <span style={{ fontWeight: 600 }}>Reason:</span> {report.reason}
+                </div>
+                {report.details && (
+                  <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 4 }}>
+                    <span style={{ fontWeight: 600 }}>Details:</span> {report.details}
+                  </div>
+                )}
+                <div style={{ fontSize: 11, color: '#9ca3af', marginBottom: 10 }}>
+                  Reported by {report.profiles?.display_name || 'Unknown'} · {new Date(report.created_at).toLocaleDateString()}
+                </div>
+                {report.status === 'pending' && (
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button onClick={() => { setFixingReport({ ...report, kind: 'allergen' }); setFixVote(null) }}
+                      style={{ flex: 2, padding: '7px 0', background: '#f57b46', border: 'none',
+                        borderRadius: 8, color: '#fff', fontSize: 11, fontWeight: 600,
+                        cursor: 'pointer', ...font }}>
+                      ✏️ Fix allergen
+                    </button>
+                    <button onClick={() => resolveAllergenReport(report.id, 'dismissed')}
+                      style={{ flex: 1, padding: '7px 0', background: '#f3f4f6', border: 'none',
+                        borderRadius: 8, color: '#6b7280', fontSize: 11, fontWeight: 600,
+                        cursor: 'pointer', ...font }}>
+                      Dismiss
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))
+          )}
+
           {/* Photo Reports */}
           <div style={{ fontSize: 12, fontWeight: 700, color: '#374151',
             textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 10, marginTop: 8 }}>
@@ -1034,11 +1118,11 @@ export default function AdminPage() {
           style={{ background: '#fff', width: '100%', borderRadius: '20px 20px 0 0',
             padding: '24px 20px 48px', fontFamily: "'Montserrat', sans-serif" }}>
           <div style={{ fontSize: 15, fontWeight: 700, color: '#111827', marginBottom: 6 }}>
-            ✏️ Fix amenity
+            {fixingReport.kind === 'allergen' ? '✏️ Fix allergen' : '✏️ Fix amenity'}
           </div>
           <div style={{ fontSize: 13, color: '#6b7280', marginBottom: 20 }}>
             <span style={{ fontWeight: 600, color: '#374151' }}>{fixingReport.restaurant_name}</span>
-            {' · '}{fixingReport.amenity_key}
+            {' · '}{fixingReport.kind === 'allergen' ? fixingReport.allergen_key : fixingReport.amenity_key}
           </div>
           <div style={{ fontSize: 11, fontWeight: 700, color: '#374151',
             textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 12 }}>
