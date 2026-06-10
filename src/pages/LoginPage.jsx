@@ -37,6 +37,7 @@ export default function LoginPage() {
   const [success, setSuccess] = useState(false)
   const [resetSent, setResetSent] = useState(false)
   const [accountType, setAccountType] = useState('family')
+  const [ownerSoon, setOwnerSoon]     = useState(false)
 
   const [form, setForm] = useState({
     firstName: '', lastName: '', zip: '', kids: '',
@@ -49,6 +50,12 @@ export default function LoginPage() {
   function blurStyle(e)  { e.target.style.borderColor = '#e5e7eb' }
 
   async function handleSignup() {
+    // Restaurant owner accounts are not available yet — gate them off entirely
+    if (accountType === 'restaurant_owner') {
+      setAccountType('family')
+      setOwnerSoon(true)
+      return
+    }
     if (!form.firstName.trim()) { setError('Please enter your first name'); return }
     if (!form.lastName.trim())  { setError('Please enter your last name'); return }
     if (accountType === 'family' && !form.zip.trim()) { setError('Please enter your zip code'); return }
@@ -380,22 +387,42 @@ export default function LoginPage() {
                   { val: 'family', icon: '👨‍👩‍👧‍👦', label: 'Parent / Family',
                     desc: 'Find family-friendly restaurants' },
                   { val: 'restaurant_owner', icon: '🍽️', label: 'Restaurant Owner',
-                    desc: 'Claim and manage my restaurant' },
+                    desc: 'Coming soon', comingSoon: true },
                 ].map(t => (
-                  <div key={t.val} onClick={() => setAccountType(t.val)}
-                    style={{ flex: 1, padding: '12px 10px', borderRadius: 12, cursor: 'pointer',
-                      border: accountType === t.val ? '2px solid #f57b46' : '1.5px solid #e5e7eb',
-                      background: accountType === t.val ? '#fff3ee' : '#fff',
+                  <div key={t.val}
+                    onClick={() => {
+                      if (t.comingSoon) { setOwnerSoon(true); return }
+                      setAccountType(t.val); setOwnerSoon(false)
+                    }}
+                    style={{ flex: 1, padding: '12px 10px', borderRadius: 12, position: 'relative',
+                      cursor: t.comingSoon ? 'default' : 'pointer',
+                      border: (accountType === t.val && !t.comingSoon) ? '2px solid #f57b46' : '1.5px solid #e5e7eb',
+                      background: (accountType === t.val && !t.comingSoon) ? '#fff3ee' : '#fff',
+                      opacity: t.comingSoon ? 0.55 : 1,
                       textAlign: 'center', transition: 'all .15s' }}>
+                    {t.comingSoon && (
+                      <div style={{ position: 'absolute', top: 6, right: 6, fontSize: 8, fontWeight: 700,
+                        textTransform: 'uppercase', letterSpacing: '.04em', color: '#c2410c',
+                        background: '#fff3ee', border: '1px solid #fcd9c6', borderRadius: 20, padding: '2px 6px' }}>
+                        Soon
+                      </div>
+                    )}
                     <div style={{ fontSize: 24, marginBottom: 4 }}>{t.icon}</div>
                     <div style={{ fontSize: 12, fontWeight: 600,
-                      color: accountType === t.val ? '#c2410c' : '#374151' }}>
+                      color: (accountType === t.val && !t.comingSoon) ? '#c2410c' : '#374151' }}>
                       {t.label}
                     </div>
                     <div style={{ fontSize: 10, color: '#9ca3af', marginTop: 2 }}>{t.desc}</div>
                   </div>
                 ))}
               </div>
+              {ownerSoon && (
+                <div style={{ marginTop: 10, padding: '10px 12px', borderRadius: 10,
+                  background: '#fff3ee', border: '1px solid #fcd9c6', fontSize: 12,
+                  color: '#9a3412', lineHeight: 1.5 }}>
+                  🍽️ Restaurant owner accounts are coming soon! We're putting the finishing touches on tools for restaurants to claim and manage their listings. For now, sign up as a parent to explore the app.
+                </div>
+              )}
             </div>
 
             {/* Name */}
