@@ -298,7 +298,7 @@ export default function LoginPage() {
 
         {/* ── SIGN IN ─────────────────────────────────── */}
         {mode === 'login' && (
-          <>
+          <form onSubmit={e => { e.preventDefault(); handleLogin() }}>
             <div style={{ fontSize: 18, fontWeight: 700, color: '#111827', marginBottom: 4 }}>
               Welcome back! 👋
             </div>
@@ -308,7 +308,7 @@ export default function LoginPage() {
 
             <div style={{ marginBottom: 14 }}>
               <label style={lbl}>Email address</label>
-              <input style={inp} type="email" value={form.email}
+              <input style={inp} type="email" value={form.email} name="email"
                 onChange={e => update('email', e.target.value)}
                 onFocus={focusStyle} onBlur={blurStyle}
                 placeholder="email@email.com" autoComplete="email" />
@@ -316,15 +316,14 @@ export default function LoginPage() {
 
             <div style={{ marginBottom: 6 }}>
               <label style={lbl}>Password</label>
-              <input style={inp} type="password" value={form.password}
+              <input style={inp} type="password" value={form.password} name="password"
                 onChange={e => update('password', e.target.value)}
                 onFocus={focusStyle} onBlur={blurStyle}
-                placeholder="Your password" autoComplete="current-password"
-                onKeyDown={e => e.key === 'Enter' && handleLogin()} />
+                placeholder="Your password" autoComplete="current-password" />
             </div>
 
             <div style={{ textAlign: 'right', marginBottom: 16 }}>
-              <button onClick={() => { setMode('forgot'); setError(null) }}
+              <button type="button" onClick={() => { setMode('forgot'); setError(null) }}
                 style={{ background: 'none', border: 'none', color: '#f57b46',
                   fontSize: 12, fontWeight: 600, cursor: 'pointer', ...font }}>
                 Forgot password?
@@ -340,7 +339,7 @@ export default function LoginPage() {
               </div>
             )}
             {error && error.includes('confirm') && (
-              <button onClick={resendConfirmation} disabled={loading}
+              <button type="button" onClick={resendConfirmation} disabled={loading}
                 style={{ width: '100%', padding: '10px 0', background: '#fff3ee',
                   border: '1px solid #fdc9b0', borderRadius: 10, fontSize: 12,
                   fontWeight: 600, color: '#c2410c', cursor: 'pointer',
@@ -349,7 +348,7 @@ export default function LoginPage() {
               </button>
             )}
 
-            <button onClick={handleLogin} disabled={loading}
+            <button type="submit" disabled={loading}
               style={{ width: '100%', padding: '14px 0', background: '#f57b46',
                 border: 'none', borderRadius: 12, color: '#fff', fontSize: 14,
                 fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer',
@@ -360,13 +359,13 @@ export default function LoginPage() {
 
             <div style={{ textAlign: 'center', fontSize: 12, color: '#9ca3af' }}>
               Don't have an account?{' '}
-              <button onClick={() => { setMode('signup'); setError(null) }}
+              <button type="button" onClick={() => { setMode('signup'); setError(null) }}
                 style={{ background: 'none', border: 'none', color: '#f57b46',
                   fontWeight: 600, cursor: 'pointer', fontSize: 12, ...font }}>
                 Sign up free
               </button>
             </div>
-          </>
+          </form>
         )}
 
         {/* ── SIGN UP ─────────────────────────────────── */}
