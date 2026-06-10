@@ -138,11 +138,11 @@ export default function RestaurantPage() {
     // Run ALL non-user queries in parallel
     const [rRes, pRes, nRes, revRes, aRes, kmRes] = await Promise.all([
       supabase.from('restaurants').select('*, amenities(*)').eq('id', id).single(),
-      supabase.from('restaurant_photos').select('*').eq('restaurant_id', id).order('created_at').limit(3),
+      supabase.from('restaurant_photos').select('*').eq('restaurant_id', id).eq('approved', true).order('created_at').limit(3),
       supabase.from('noise_votes').select('score, user_id').eq('restaurant_id', id),
       supabase.from('reviews').select('*, profiles(display_name)').eq('restaurant_id', id).order('created_at', { ascending: false }),
       supabase.from('allergens').select('*').eq('restaurant_id', id),
-      supabase.from('kids_menu_photos').select('*').eq('restaurant_id', id).order('created_at'),
+      supabase.from('kids_menu_photos').select('*').eq('restaurant_id', id).eq('approved', true).order('created_at'),
     ])
 
     const r      = rRes.data
@@ -389,10 +389,9 @@ export default function RestaurantPage() {
     if (upErr) { showToast(upErr.message, false); setUploadingKidsMenu(false); return }
     const { data: urlData } = supabase.storage.from('restaurant-photos').getPublicUrl(path)
     await supabase.from('kids_menu_photos').insert({
-      restaurant_id: id, uploaded_by: user.id, photo_url: urlData.publicUrl
+      restaurant_id: id, uploaded_by: user.id, photo_url: urlData.publicUrl, approved: false
     })
-    setKidsMenuPhotos(prev => [...prev, { photo_url: urlData.publicUrl }])
-    showToast('+10 pts! Kids menu photo added 🍟')
+    showToast('Kids menu photo submitted! It will appear once approved 🍟')
     setUploadingKidsMenu(false)
   }
 
@@ -430,15 +429,17 @@ export default function RestaurantPage() {
       user_id: user.id,
       rating: reviewRating,
       body: reviewText.trim(),
-      photos: reviewPhotos.length > 0 ? reviewPhotos : null
+      photos: reviewPhotos.length > 0 ? reviewPhotos : null,
+      photos_approved: false
     })
     if (error) { showToast(error.message, false); return }
+    const hadPhotos = reviewPhotos.length > 0
     setReviewText('')
     setReviewRating(5)
     setReviewPhotos([])
     setShowReviewForm(false)
     delete restaurantCache[id] // Invalidate cache so fresh data loads
-    showToast('+25 pts! Review posted ⭐')
+    showToast(hadPhotos ? '+25 pts! Review posted ⭐ (photos pending approval)' : '+25 pts! Review posted ⭐')
     // Log to points_ledger so profile review count updates
     try {
       await supabase.from('points_ledger').insert({
@@ -474,10 +475,9 @@ export default function RestaurantPage() {
     if (upErr) { showToast(upErr.message, false); setUploading(false); return }
     const { data: urlData } = supabase.storage.from('restaurant-photos').getPublicUrl(path)
     await supabase.from('restaurant_photos').insert({
-      restaurant_id: id, user_id: user.id, url: urlData.publicUrl, path
+      restaurant_id: id, user_id: user.id, url: urlData.publicUrl, path, approved: false
     })
-    setPhotos(prev => [...prev, { url: urlData.publicUrl }])
-    showToast('+15 pts! Photo added 📸')
+    showToast('Photo submitted! It will appear once approved 📸')
     setUploading(false)
   }
 
@@ -1021,7 +1021,7 @@ export default function RestaurantPage() {
             {rev.body && (
               <div style={{ fontSize: 12, color: '#374151', lineHeight: 1.6 }}>{rev.body}</div>
             )}
-            {rev.photos && rev.photos.length > 0 && (
+            {rev.photos_approved && rev.photos && rev.photos.length > 0 && (
               <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
                 {rev.photos.map((url, i) => (
                   <img key={i} src={url} style={{ width: 72, height: 72, objectFit: 'cover',

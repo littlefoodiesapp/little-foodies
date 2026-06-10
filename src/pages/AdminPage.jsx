@@ -49,6 +49,10 @@ export default function AdminPage() {
   const [amenityReports, setAmenityReports] = useState([])
   // Allergen Reports
   const [allergenReports, setAllergenReports] = useState([])
+  // Photo approvals (pending)
+  const [pendingGallery, setPendingGallery]   = useState([])
+  const [pendingKids, setPendingKids]         = useState([])
+  const [pendingReviewPhotos, setPendingReviewPhotos] = useState([])
   const [fixingReport, setFixingReport]     = useState(null) // report being fixed
   const [fixVote, setFixVote]               = useState(null) // 'yes' or 'no'
   const [savingFix, setSavingFix]           = useState(false)
@@ -81,6 +85,7 @@ export default function AdminPage() {
     loadPhotoReports()
     loadAmenityReports()
     loadAllergenReports()
+    loadPendingPhotos()
     setLoading(false)
   }
 
@@ -140,6 +145,63 @@ export default function AdminPage() {
   async function resolveAllergenReport(id, status) {
     await supabase.from('allergen_reports').update({ status }).eq('id', id)
     setAllergenReports(prev => prev.map(r => r.id === id ? { ...r, status } : r))
+  }
+
+  async function loadPendingPhotos() {
+    const [g, k, r] = await Promise.all([
+      supabase.from('restaurant_photos').select('*').eq('approved', false).order('created_at'),
+      supabase.from('kids_menu_photos').select('*').eq('approved', false).order('created_at'),
+      supabase.from('reviews').select('*, profiles(display_name)').eq('photos_approved', false).not('photos', 'is', null).order('created_at'),
+    ])
+    const gd = g.data || [], kd = k.data || [], rd = r.data || []
+    // Resolve restaurant names in one query
+    const ids = [...new Set([...gd, ...kd, ...rd].map(x => x.restaurant_id).filter(Boolean))]
+    const nameMap = {}
+    if (ids.length) {
+      const { data: rests } = await supabase.from('restaurants').select('id, name').in('id', ids)
+      ;(rests || []).forEach(rr => { nameMap[rr.id] = rr.name })
+    }
+    setPendingGallery(gd.map(x => ({ ...x, _rname: nameMap[x.restaurant_id] })))
+    setPendingKids(kd.map(x => ({ ...x, _rname: nameMap[x.restaurant_id] })))
+    setPendingReviewPhotos(rd.map(x => ({ ...x, _rname: nameMap[x.restaurant_id] })))
+  }
+
+  async function approveGallery(p) {
+    await supabase.from('restaurant_photos').update({ approved: true }).eq('id', p.id)
+    setPendingGallery(prev => prev.filter(x => x.id !== p.id))
+    showToast('Photo approved ✓')
+  }
+  async function rejectGallery(p) {
+    await supabase.from('restaurant_photos').delete().eq('id', p.id)
+    if (p.path) await supabase.storage.from('restaurant-photos').remove([p.path])
+    setPendingGallery(prev => prev.filter(x => x.id !== p.id))
+    showToast('Photo rejected')
+  }
+  async function approveKids(p) {
+    await supabase.from('kids_menu_photos').update({ approved: true }).eq('id', p.id)
+    setPendingKids(prev => prev.filter(x => x.id !== p.id))
+    showToast('Kids menu photo approved ✓')
+  }
+  async function rejectKids(p) {
+    await supabase.from('kids_menu_photos').delete().eq('id', p.id)
+    const path = p.photo_url?.split('/restaurant-photos/')[1]
+    if (path) await supabase.storage.from('restaurant-photos').remove([path])
+    setPendingKids(prev => prev.filter(x => x.id !== p.id))
+    showToast('Kids menu photo rejected')
+  }
+  async function approveReviewPhotos(rev) {
+    await supabase.from('reviews').update({ photos_approved: true }).eq('id', rev.id)
+    setPendingReviewPhotos(prev => prev.filter(x => x.id !== rev.id))
+    showToast('Review photos approved ✓')
+  }
+  async function rejectReviewPhotos(rev) {
+    await supabase.from('reviews').update({ photos: null }).eq('id', rev.id)
+    for (const url of (rev.photos || [])) {
+      const path = url?.split('/restaurant-photos/')[1]
+      if (path) await supabase.storage.from('restaurant-photos').remove([path])
+    }
+    setPendingReviewPhotos(prev => prev.filter(x => x.id !== rev.id))
+    showToast('Review photos rejected')
   }
 
   async function fixAmenity() {
@@ -445,6 +507,7 @@ export default function AdminPage() {
           { id: 'claims',      label: `🔑 Claims${claims.filter(c => c.status === 'pending').length > 0 ? ` (${claims.filter(c => c.status === 'pending').length})` : ''}` },
           { id: 'feedback',    label: `💬 Feedback${feedback.length > 0 ? ` (${feedback.length})` : ''}` },
           { id: 'reports',     label: `🚩 Reports${(photoReports.filter(r => r.status === 'pending').length + amenityReports.filter(r => r.status === 'pending').length + allergenReports.filter(r => r.status === 'pending').length) > 0 ? ` (${photoReports.filter(r => r.status === 'pending').length + amenityReports.filter(r => r.status === 'pending').length + allergenReports.filter(r => r.status === 'pending').length})` : ''}` },
+          { id: 'photos',      label: `📷 Photos${(pendingGallery.length + pendingKids.length + pendingReviewPhotos.length) > 0 ? ` (${pendingGallery.length + pendingKids.length + pendingReviewPhotos.length})` : ''}` },
         ].map(t => (
           <button key={t.id} onClick={() => setActiveTab(t.id)}
             style={{ flex: 1, padding: '12px 0', background: 'none', border: 'none',
@@ -967,6 +1030,87 @@ export default function AdminPage() {
                       🗑️ Delete photo
                     </button>
                   </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
+      {activeTab === 'photos' && (
+        <div style={{ padding: '14px 16px 0' }}>
+
+          {/* Gallery photos */}
+          <div style={{ fontSize: 12, fontWeight: 700, color: '#374151',
+            textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 10 }}>
+            🖼️ Gallery Photos ({pendingGallery.length} pending)
+          </div>
+          {pendingGallery.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '14px 0', color: '#9ca3af', fontSize: 13, ...font, marginBottom: 18 }}>
+              Nothing pending 🎉
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 22 }}>
+              {pendingGallery.map(p => (
+                <div key={p.id} style={{ width: 150, border: '0.5px solid #e5e7eb', borderRadius: 12, overflow: 'hidden', background: '#fff' }}>
+                  <img src={p.url} style={{ width: '100%', height: 110, objectFit: 'cover', display: 'block' }} />
+                  <div style={{ padding: '6px 8px 2px', fontSize: 10, color: '#6b7280', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p._rname || 'Unknown restaurant'}</div>
+                  <div style={{ display: 'flex', gap: 6, padding: '4px 8px 8px' }}>
+                    <button onClick={() => approveGallery(p)} style={{ flex: 1, padding: '6px 0', background: '#00a994', border: 'none', borderRadius: 8, color: '#fff', fontSize: 11, fontWeight: 600, cursor: 'pointer', ...font }}>Approve</button>
+                    <button onClick={() => rejectGallery(p)} style={{ flex: 1, padding: '6px 0', background: '#fef2f2', border: 'none', borderRadius: 8, color: '#dc2626', fontSize: 11, fontWeight: 600, cursor: 'pointer', ...font }}>Reject</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Kids menu photos */}
+          <div style={{ fontSize: 12, fontWeight: 700, color: '#374151',
+            textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 10 }}>
+            🍟 Kids Menu Photos ({pendingKids.length} pending)
+          </div>
+          {pendingKids.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '14px 0', color: '#9ca3af', fontSize: 13, ...font, marginBottom: 18 }}>
+              Nothing pending 🎉
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 22 }}>
+              {pendingKids.map(p => (
+                <div key={p.id} style={{ width: 150, border: '0.5px solid #e5e7eb', borderRadius: 12, overflow: 'hidden', background: '#fff' }}>
+                  <img src={p.photo_url} style={{ width: '100%', height: 110, objectFit: 'cover', display: 'block' }} />
+                  <div style={{ padding: '6px 8px 2px', fontSize: 10, color: '#6b7280', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p._rname || 'Unknown restaurant'}</div>
+                  <div style={{ display: 'flex', gap: 6, padding: '4px 8px 8px' }}>
+                    <button onClick={() => approveKids(p)} style={{ flex: 1, padding: '6px 0', background: '#00a994', border: 'none', borderRadius: 8, color: '#fff', fontSize: 11, fontWeight: 600, cursor: 'pointer', ...font }}>Approve</button>
+                    <button onClick={() => rejectKids(p)} style={{ flex: 1, padding: '6px 0', background: '#fef2f2', border: 'none', borderRadius: 8, color: '#dc2626', fontSize: 11, fontWeight: 600, cursor: 'pointer', ...font }}>Reject</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Review photos */}
+          <div style={{ fontSize: 12, fontWeight: 700, color: '#374151',
+            textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 10 }}>
+            ⭐ Review Photos ({pendingReviewPhotos.length} pending)
+          </div>
+          {pendingReviewPhotos.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '14px 0', color: '#9ca3af', fontSize: 13, ...font, marginBottom: 24 }}>
+              Nothing pending 🎉
+            </div>
+          ) : (
+            pendingReviewPhotos.map(rev => (
+              <div key={rev.id} style={{ background: '#fff', border: '0.5px solid #e5e7eb', borderRadius: 12, padding: '10px 12px', marginBottom: 10 }}>
+                <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 8 }}>
+                  {rev._rname || 'Unknown restaurant'} · by {rev.profiles?.display_name || 'Unknown'}
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
+                  {(rev.photos || []).map((url, i) => (
+                    <img key={i} src={url} style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 8, border: '0.5px solid #e5e7eb' }} />
+                  ))}
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button onClick={() => approveReviewPhotos(rev)} style={{ flex: 1, padding: '7px 0', background: '#00a994', border: 'none', borderRadius: 8, color: '#fff', fontSize: 11, fontWeight: 600, cursor: 'pointer', ...font }}>Approve photos</button>
+                  <button onClick={() => rejectReviewPhotos(rev)} style={{ flex: 1, padding: '7px 0', background: '#fef2f2', border: 'none', borderRadius: 8, color: '#dc2626', fontSize: 11, fontWeight: 600, cursor: 'pointer', ...font }}>Reject photos</button>
                 </div>
               </div>
             ))
