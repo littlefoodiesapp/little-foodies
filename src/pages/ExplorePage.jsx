@@ -1571,14 +1571,6 @@ export default function ExplorePage() {
                   ...font, display: 'flex', alignItems: 'center', gap: 5 }}>
                 {geolocating ? '⏳ Finding you…' : '📍 Use my location'}
               </button>
-              {['07083', '07066', '07016', '07090', '07901'].map(q => (
-                <button key={q} onClick={() => handleQuickSearch(q)}
-                  style={{ padding: '6px 13px', background: '#fff', border: '1px solid #e5e7eb',
-                    borderRadius: 20, fontSize: 12, fontWeight: 500, color: '#6b7280',
-                    cursor: 'pointer', ...font }}>
-                  {q}
-                </button>
-              ))}
             </div>
           </div>
 
