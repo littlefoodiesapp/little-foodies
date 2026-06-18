@@ -1123,6 +1123,10 @@ export default function ExplorePage() {
   const [hasSearched, setHasSearched] = useState(() => localStorage.getItem('lf_hassearched') === 'true')
   const [radius, setRadius]           = useState(() => Number(localStorage.getItem('lf_radius')) || 5)
   const [searchState, setSearchState] = useState(() => localStorage.getItem('lf_search_state') || '') // set when a town is picked from suggestions
+  // The lat/lon center of the picked town, so town search can measure real distance (not just exact-name match)
+  const [searchCenter, setSearchCenter] = useState(() => {
+    try { const s = localStorage.getItem('lf_search_center'); return s ? JSON.parse(s) : null } catch { return null }
+  })
   const fetchedFavs = useRef(false)
 
   // Let the Explore tab reset us to the home view even when already on this page
@@ -1238,7 +1242,9 @@ export default function ExplorePage() {
     setSearch(val)
     setSearchLabel(val)
     setSearchState('')
+    setSearchCenter(null)
     localStorage.removeItem('lf_search_state')
+    localStorage.removeItem('lf_search_center')
     localStorage.setItem('lf_search', val)
     localStorage.setItem('lf_search_label', val)
     if (val.trim().length === 0) {
@@ -1257,7 +1263,9 @@ export default function ExplorePage() {
     const val = search.trim()
     if (!val) return
     setSearchState('')
+    setSearchCenter(null)
     localStorage.removeItem('lf_search_state')
+    localStorage.removeItem('lf_search_center')
     const isZip = /^\d{5}$/.test(val)
     // If it's not a zip and we have suggestions, use the first one
     if (!isZip && suggestions.length > 0) {
@@ -1293,7 +1301,9 @@ export default function ExplorePage() {
     setSearch(val)
     setSearchLabel(val)
     setSearchState('')
+    setSearchCenter(null)
     localStorage.removeItem('lf_search_state')
+    localStorage.removeItem('lf_search_center')
     setHasSearched(true)
     setSuggestions([])
     setShowSuggestions(false)
@@ -1306,10 +1316,12 @@ export default function ExplorePage() {
     setSearch('')
     setSearchLabel('')
     setSearchState('')
+    setSearchCenter(null)
     setSuggestions([])
     setShowSuggestions(false)
     localStorage.removeItem('lf_search_label')
     localStorage.removeItem('lf_search_state')
+    localStorage.removeItem('lf_search_center')
     setHasSearched(false)
     setFilters(new Set())
     localStorage.removeItem('lf_search')
@@ -1378,9 +1390,13 @@ export default function ExplorePage() {
     setSearchLabel(suggestion.label)
     setSearch(suggestion.city)
     setSearchState(suggestion.state || '')
+    const center = (suggestion.lat != null && suggestion.lon != null) ? [suggestion.lat, suggestion.lon] : null
+    setSearchCenter(center)
     localStorage.setItem('lf_search', suggestion.city)
     localStorage.setItem('lf_search_label', suggestion.label)
     localStorage.setItem('lf_search_state', suggestion.state || '')
+    if (center) localStorage.setItem('lf_search_center', JSON.stringify(center))
+    else localStorage.removeItem('lf_search_center')
     localStorage.setItem('lf_hassearched', 'true')
     setHasSearched(true)
   }
@@ -1434,18 +1450,25 @@ export default function ExplorePage() {
   }
 
   // The unique towns we actually have restaurants in — powers instant suggestions.
+  // Each town also gets a center coordinate (from the first restaurant whose zip we know),
+  // so picking a town can drive a real distance search.
   const townOptions = useMemo(() => {
-    const seen = new Set()
-    const out = []
+    const byTown = new Map()
     for (const r of restaurants) {
       if (!r.city) continue
       const st = r.state || ''
       const key = `${r.city.toLowerCase()}|${st.toLowerCase()}`
-      if (seen.has(key)) continue
-      seen.add(key)
-      out.push({ label: [r.city, st].filter(Boolean).join(', '), city: r.city, state: st })
+      let t = byTown.get(key)
+      if (!t) {
+        t = { label: [r.city, st].filter(Boolean).join(', '), city: r.city, state: st, lat: null, lon: null }
+        byTown.set(key, t)
+      }
+      if (t.lat == null) {
+        const c = ZIP_COORDS[r.zip]
+        if (c) { t.lat = c[0]; t.lon = c[1] }
+      }
     }
-    return out.sort((a, b) => a.label.localeCompare(b.label))
+    return [...byTown.values()].sort((a, b) => a.label.localeCompare(b.label))
   }, [restaurants])
 
   const term = search.trim().toLowerCase()
@@ -1455,9 +1478,19 @@ export default function ExplorePage() {
   const visible = restaurants.filter(r => {
     if (!term) return false
     if (cityMode) {
-      // A town was picked from suggestions — show every restaurant in that town.
-      return (r.city || '').toLowerCase() === term
+      // A town was picked from suggestions.
+      const sameTown = (r.city || '').toLowerCase() === term
         && (r.state || '').toLowerCase() === searchState.toLowerCase()
+      if (searchCenter) {
+        // Always include the searched town itself...
+        if (sameTown) return true
+        // ...plus any restaurant within the chosen radius of the town's center.
+        const rCoords = ZIP_COORDS[r.zip]
+        if (rCoords) return distanceMiles(searchCenter[0], searchCenter[1], rCoords[0], rCoords[1]) <= radius
+        return false
+      }
+      // No center known for this town — fall back to exact-town match.
+      return sameTown
     }
     if (searchCoords) {
       const rCoords = ZIP_COORDS[r.zip]
