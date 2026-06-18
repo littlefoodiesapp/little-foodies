@@ -51,7 +51,6 @@ export default function ProfilePage() {
   const [nameVal, setNameVal]       = useState('')
   const [loading, setLoading]       = useState(!cachedProfile)
   const [activeTab, setActiveTab]   = useState('overview')
-  const [friends, setFriends]       = useState([])
   const [showEditProfile, setShowEditProfile] = useState(false)
   const [editForm, setEditForm]     = useState({})
   const [showFeedback, setShowFeedback] = useState(false)
@@ -135,13 +134,6 @@ export default function ProfilePage() {
       setNameVal(profileData?.display_name || '')
       setHistory(histRes.data || [])
       setFavorites(favRes.data || [])
-      // Load friends
-      const { data: friendData } = await supabase
-        .from('friendships')
-        .select('requester_id, addressee_id, requester:profiles!friendships_requester_id_fkey(id, display_name, points), addressee:profiles!friendships_addressee_id_fkey(id, display_name, points)')
-        .or(`requester_id.eq.${user.id},addressee_id.eq.${user.id}`)
-        .eq('status', 'accepted')
-      setFriends((friendData || []).map(f => f.requester_id === user.id ? f.addressee : f.requester))
 
     } catch (err) {
       console.error('Profile load error:', err)
@@ -278,7 +270,6 @@ export default function ProfilePage() {
 
   const tabs = [
     { id: 'overview',   label: 'Overview' },
-    { id: 'friends',    label: 'Friends' + (friends.length > 0 ? ' (' + friends.length + ')' : '') },
     { id: 'activity',   label: 'Activity' },
   ]
 
@@ -545,58 +536,6 @@ export default function ProfilePage() {
       )}
 
       {/* ── FAVORITES TAB ──────────────────────────────────── */}
-      {activeTab === 'friends' && (
-        <div style={{ padding: '16px 16px 0' }}>
-          {friends.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '40px 20px' }}>
-              <div style={{ fontSize: 48, marginBottom: 12 }}>👫</div>
-              <div style={{ fontSize: 15, fontWeight: 600, color: '#374151', marginBottom: 6 }}>
-                No friends yet
-              </div>
-              <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 20 }}>
-                Connect with other Little Foodies parents!
-              </div>
-              <Link to="/friends" style={{ padding: '10px 24px', background: '#f57b46',
-                color: '#fff', borderRadius: 10, fontSize: 13, fontWeight: 600,
-                textDecoration: 'none' }}>
-                Find friends
-              </Link>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {friends.map(f => (
-                <Link key={f.id} to={`/friends/${f.id}`}
-                  style={{ textDecoration: 'none' }}>
-                  <div style={{ background: '#fff', border: '0.5px solid #e5e7eb',
-                    borderRadius: 12, padding: '12px 14px',
-                    display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <div style={{ width: 42, height: 42, borderRadius: '50%',
-                      background: '#fff3ee', display: 'flex', alignItems: 'center',
-                      justifyContent: 'center', fontSize: 18, fontWeight: 700,
-                      color: '#f57b46', flexShrink: 0 }}>
-                      {(f.display_name || '?').charAt(0).toUpperCase()}
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 14, fontWeight: 600, color: '#111827' }}>
-                        {f.display_name}
-                      </div>
-                      <div style={{ fontSize: 11, color: '#9ca3af' }}>
-                        🏅 {f.points || 0} pts
-                      </div>
-                    </div>
-                    <span style={{ color: '#9ca3af', fontSize: 16 }}>›</span>
-                  </div>
-                </Link>
-              ))}
-              <Link to="/friends" style={{ display: 'block', textAlign: 'center',
-                padding: '12px', fontSize: 13, fontWeight: 600, color: '#f57b46',
-                textDecoration: 'none', marginTop: 4 }}>
-                Manage friends →
-              </Link>
-            </div>
-          )}
-        </div>
-      )}
 
       {/* ── ACTIVITY TAB ───────────────────────────────────── */}
       {activeTab === 'activity' && (

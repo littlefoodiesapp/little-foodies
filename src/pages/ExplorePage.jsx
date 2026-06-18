@@ -1866,7 +1866,7 @@ export default function ExplorePage() {
             { icon: '🪑', title: 'Check family amenities', body: 'Every restaurant shows community-verified info on high chairs, kids menus, changing tables, stroller access, and more.' },
             { icon: '🍟', title: 'Browse the kids menu', body: 'Tap the kids menu tile on any restaurant to see photos of the kids menu so little ones can pick before you arrive.' },
             { icon: '⚠️', title: 'Allergen info', body: 'Look for allergen badges like peanut-free and gluten-free options. Always confirm directly with the restaurant.', note: '* Community-reported, unverified until confirmed by the restaurant owner.' },
-            { icon: '❤️', title: 'Share with friends', body: 'Found a great spot? Tap Share on any restaurant page to send it to friends directly in the app.' },
+            { icon: '📤', title: 'Share with friends', body: 'Found a great spot? Tap Share on any restaurant page to send it to friends in a text message.' },
             { icon: '🏅', title: 'Earn points', body: 'Add restaurants (+50 pts), write reviews (+25 pts), vote on amenities (+5 pts), and climb the tiers from Sprout to Legend.' },
           ].map(item => (
             <div key={item.title} style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
