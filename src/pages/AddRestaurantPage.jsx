@@ -52,7 +52,8 @@ export default function AddRestaurantPage() {
 
   const [form, setForm] = useState({
     name: '', cuisine: '', address: '', city: '', state: '',
-    zip: '', phone: '', website: '', hours: '', emoji: '🍽️', opentable_url: ''
+    zip: '', phone: '', website: '', hours: '', emoji: '🍽️', opentable_url: '',
+    lat: null, lng: null
   })
 
   const [amenitySelections, setAmenitySelections] = useState({
@@ -131,6 +132,9 @@ export default function AddRestaurantPage() {
           parsedHours = JSON.stringify(hoursObj)
         }
 
+        // Exact restaurant coordinates from Google (used for the map view + precise distance)
+        const loc = p.geometry?.location || null
+
         setForm(prev => ({
           ...prev,
           name:    p.name || prev.name,
@@ -141,6 +145,8 @@ export default function AddRestaurantPage() {
           phone:   p.formatted_phone_number || '',
           website: p.website ? p.website.replace(/\/$/, '') : '',
           hours:   parsedHours || prev.hours,
+          lat:     loc ? loc.lat : null,
+          lng:     loc ? loc.lng : null,
         }))
         setPlaceSelected(true)
       }
@@ -178,6 +184,7 @@ export default function AddRestaurantPage() {
           city: form.city, state: form.state, zip: form.zip,
           phone: form.phone, website: form.website, hours: form.hours,
           emoji: form.emoji, opentable_url: form.opentable_url || null,
+          lat: form.lat, lng: form.lng,
           status: 'pending', submitted_by: currentUser?.id,
         })
         .select().single()
