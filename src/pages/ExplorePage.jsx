@@ -1112,6 +1112,7 @@ export default function ExplorePage() {
   const [restaurants, setRestaurants] = useState(cachedRestaurants || [])
   const [favIds, setFavIds]           = useState(new Set())
   const [activeFilters, setFilters]   = useState(new Set())
+  const [activeCuisines, setCuisines] = useState(new Set())
   const [loading, setLoading]         = useState(!cachedRestaurants)
   const [search, setSearch]           = useState(() => localStorage.getItem('lf_search') || '')
   const [geolocating, setGeolocating]   = useState(false)
@@ -1324,6 +1325,7 @@ export default function ExplorePage() {
     localStorage.removeItem('lf_search_center')
     setHasSearched(false)
     setFilters(new Set())
+    setCuisines(new Set())
     localStorage.removeItem('lf_search')
     localStorage.removeItem('lf_hassearched')
     localStorage.removeItem('lf_radius')
@@ -1336,6 +1338,10 @@ export default function ExplorePage() {
 
   function toggleFilter(id) {
     setFilters(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
+  }
+
+  function toggleCuisine(c) {
+    setCuisines(prev => { const n = new Set(prev); n.has(c) ? n.delete(c) : n.add(c); return n })
   }
 
   async function toggleFav(e, r) {
@@ -1471,6 +1477,15 @@ export default function ExplorePage() {
     return [...byTown.values()].sort((a, b) => a.label.localeCompare(b.label))
   }, [restaurants])
 
+  // The unique cuisines we actually have restaurants in — powers the cuisine filter chips.
+  const cuisineOptions = useMemo(() => {
+    const set = new Set()
+    for (const r of restaurants) {
+      if (r.cuisine && r.cuisine.trim()) set.add(r.cuisine.trim())
+    }
+    return [...set].sort((a, b) => a.localeCompare(b))
+  }, [restaurants])
+
   const term = search.trim().toLowerCase()
   const cityMode = !!searchState
   const searchCoords = ZIP_COORDS[term] || null
@@ -1499,10 +1514,18 @@ export default function ExplorePage() {
     }
     return (r.zip || '').toLowerCase().includes(term)
   }).filter(r => {
-    if (!activeFilters.size) return true
-    return [...activeFilters].every(f =>
-      (r.amenities || []).some(a => a.amenity_key === f && a.yes_votes > a.no_votes)
-    )
+    // Amenity filters: restaurant must have ALL selected amenities.
+    if (activeFilters.size) {
+      const ok = [...activeFilters].every(f =>
+        (r.amenities || []).some(a => a.amenity_key === f && a.yes_votes > a.no_votes)
+      )
+      if (!ok) return false
+    }
+    // Cuisine filters: restaurant's cuisine must match ANY selected cuisine.
+    if (activeCuisines.size) {
+      if (!activeCuisines.has((r.cuisine || '').trim())) return false
+    }
+    return true
   })
 
   const noResults = hasSearched && term && !loading && restaurants.length > 0 && visible.length === 0
@@ -1700,6 +1723,27 @@ export default function ExplorePage() {
             ))}
             </div>
           </div>
+
+          {/* Cuisine filters — only shown when we have a couple of cuisines to choose from */}
+          {cuisineOptions.length > 1 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px',
+              background: '#fff', borderBottom: '0.5px solid #f3f4f6' }}>
+              <span style={{ fontSize: 11, color: '#6b7280', fontWeight: 500, flexShrink: 0 }}>Cuisine:</span>
+              <div style={{ display: 'flex', gap: 7, overflowX: 'auto', scrollbarWidth: 'none', flex: 1, minWidth: 0 }}>
+              {cuisineOptions.map(c => (
+                <div key={c} onClick={() => toggleCuisine(c)}
+                  style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '6px 11px',
+                    borderRadius: 20, whiteSpace: 'nowrap', cursor: 'pointer', flexShrink: 0,
+                    border: activeCuisines.has(c) ? '1.5px solid #f57b46' : '1.5px solid #e5e7eb',
+                    background: activeCuisines.has(c) ? '#fff3ee' : '#fff',
+                    color: activeCuisines.has(c) ? '#c2410c' : '#6b7280',
+                    fontSize: 11, fontWeight: 600 }}>
+                  {c}
+                </div>
+              ))}
+              </div>
+            </div>
+          )}
 
           {/* Count */}
           <div style={{ fontSize: 11, fontWeight: 600, color: '#9ca3af', padding: '10px 16px',
