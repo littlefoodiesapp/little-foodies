@@ -1390,6 +1390,11 @@ export default function ExplorePage() {
     setCuisines(prev => { const n = new Set(prev); n.has(c) ? n.delete(c) : n.add(c); return n })
   }
 
+  function clearFilters() {
+    setFilters(new Set())
+    setCuisines(new Set())
+  }
+
   async function toggleFav(e, r) {
     e.preventDefault()
     if (!user) { alert('Sign in to save favorites!'); return }
@@ -1836,6 +1841,14 @@ export default function ExplorePage() {
               </div>
             ))}
             </div>
+            {(activeFilters.size > 0 || activeCuisines.size > 0) && (
+              <button onClick={clearFilters}
+                style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 3,
+                  padding: '6px 10px', borderRadius: 20, border: 'none', cursor: 'pointer',
+                  background: '#fff3ee', color: '#c2410c', fontSize: 11, fontWeight: 600, ...font }}>
+                ✕ Clear
+              </button>
+            )}
           </div>
 
           {/* Cuisine filters — only shown when we have a couple of cuisines to choose from */}
