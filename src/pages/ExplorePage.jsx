@@ -1107,12 +1107,51 @@ function InstagramIcon() {
 // Cache restaurants in module scope so they survive navigation
 let cachedRestaurants = null
 
+// Load Leaflet (map library) from CDN once, on demand. Resolves with window.L.
+let leafletPromise = null
+function loadLeaflet() {
+  if (window.L) return Promise.resolve(window.L)
+  if (leafletPromise) return leafletPromise
+  leafletPromise = new Promise((resolve, reject) => {
+    const css = document.createElement('link')
+    css.rel = 'stylesheet'
+    css.href = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css'
+    document.head.appendChild(css)
+    const js = document.createElement('script')
+    js.src = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js'
+    js.onload = () => resolve(window.L)
+    js.onerror = () => reject(new Error('Could not load the map library'))
+    document.body.appendChild(js)
+  })
+  return leafletPromise
+}
+
+// Resolve a restaurant's map position: exact coords if we have them, otherwise the
+// zip-code center nudged slightly (by id) so same-zip restaurants don't perfectly stack.
+function restaurantCoords(r) {
+  if (typeof r.lat === 'number' && typeof r.lng === 'number') return [r.lat, r.lng]
+  const c = ZIP_COORDS[r.zip]
+  if (!c) return null
+  let h = 0
+  const s = String(r.id || '')
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0
+  const jitter = 0.012 // ~0.8 mile spread so pins fan out within a zip
+  const dx = ((h & 255) / 255 - 0.5) * jitter
+  const dy = (((h >> 8) & 255) / 255 - 0.5) * jitter
+  return [c[0] + dy, c[1] + dx]
+}
+
 export default function ExplorePage() {
   const { user } = useAuth()
   const [restaurants, setRestaurants] = useState(cachedRestaurants || [])
   const [favIds, setFavIds]           = useState(new Set())
   const [activeFilters, setFilters]   = useState(new Set())
   const [activeCuisines, setCuisines] = useState(new Set())
+  const [viewMode, setViewMode]       = useState('list') // 'list' | 'map'
+  const [selectedPin, setSelectedPin] = useState(null)   // restaurant shown in the map card
+  const mapDivRef   = useRef(null)
+  const mapRef      = useRef(null)
+  const markersRef  = useRef(null)
   const [loading, setLoading]         = useState(!cachedRestaurants)
   const [search, setSearch]           = useState(() => localStorage.getItem('lf_search') || '')
   const [geolocating, setGeolocating]   = useState(false)
@@ -1529,6 +1568,50 @@ export default function ExplorePage() {
   })
 
   const noResults = hasSearched && term && !loading && restaurants.length > 0 && visible.length === 0
+  const visibleKey = visible.map(r => r.id).join('|')
+
+  // Build / update the Leaflet map when the user is in map view
+  useEffect(() => {
+    if (viewMode !== 'map') {
+      if (mapRef.current) { mapRef.current.remove(); mapRef.current = null; markersRef.current = null }
+      return
+    }
+    let cancelled = false
+    loadLeaflet().then(L => {
+      if (cancelled || viewMode !== 'map' || !mapDivRef.current) return
+      if (!mapRef.current) {
+        mapRef.current = L.map(mapDivRef.current)
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          maxZoom: 19, attribution: '© OpenStreetMap contributors'
+        }).addTo(mapRef.current)
+        markersRef.current = L.layerGroup().addTo(mapRef.current)
+      }
+      const map = mapRef.current
+      const layer = markersRef.current
+      layer.clearLayers()
+      const pts = []
+      visible.forEach(r => {
+        const pos = restaurantCoords(r)
+        if (!pos) return
+        pts.push(pos)
+        const icon = L.divIcon({
+          className: 'lf-pin',
+          html: '<div style="font-size:22px;line-height:1;transform:translate(-50%,-100%);width:max-content;filter:drop-shadow(0 1px 1px rgba(0,0,0,.35))">' + (r.emoji || '🍽️') + '</div>',
+          iconSize: [0, 0], iconAnchor: [0, 0],
+        })
+        L.marker(pos, { icon }).addTo(layer).on('click', () => setSelectedPin(r))
+      })
+      if (pts.length === 1) map.setView(pts[0], 14)
+      else if (pts.length > 1) map.fitBounds(pts, { padding: [40, 40] })
+      else if (searchCenter) map.setView(searchCenter, 12)
+      else map.setView([40.7, -74.25], 10)
+      setTimeout(() => { if (!cancelled && mapRef.current) mapRef.current.invalidateSize() }, 120)
+    }).catch(() => {})
+    return () => { cancelled = true }
+  }, [viewMode, visibleKey, searchCenter])
+
+  // Tear the map down if the page unmounts
+  useEffect(() => () => { if (mapRef.current) { mapRef.current.remove(); mapRef.current = null } }, [])
 
   return (
     <div style={{ ...font, background: '#f9fafb', minHeight: '100vh', paddingBottom: 80 }}>
@@ -1745,12 +1828,27 @@ export default function ExplorePage() {
             </div>
           )}
 
-          {/* Count */}
-          <div style={{ fontSize: 11, fontWeight: 600, color: '#9ca3af', padding: '10px 16px',
-            textTransform: 'uppercase', letterSpacing: '.06em' }}>
-            {loading
-              ? 'Loading restaurants...'
-              : visible.length + ' restaurant' + (visible.length !== 1 ? 's' : '') + ' within ' + radius + ' miles of ' + search}
+          {/* Count + List/Map toggle */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '10px 16px' }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: '#9ca3af',
+              textTransform: 'uppercase', letterSpacing: '.06em', minWidth: 0 }}>
+              {loading
+                ? 'Loading restaurants...'
+                : visible.length + ' restaurant' + (visible.length !== 1 ? 's' : '') + ' within ' + radius + ' miles of ' + search}
+            </div>
+            <div style={{ display: 'flex', background: '#f3f4f6', borderRadius: 9, padding: 2, flexShrink: 0 }}>
+              {['list', 'map'].map(mode => (
+                <button key={mode} onClick={() => { setViewMode(mode); setSelectedPin(null) }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '5px 12px',
+                    borderRadius: 7, border: 'none', cursor: 'pointer', ...font,
+                    fontSize: 11, fontWeight: 600, textTransform: 'capitalize',
+                    background: viewMode === mode ? '#fff' : 'transparent',
+                    color: viewMode === mode ? '#f57b46' : '#9ca3af',
+                    boxShadow: viewMode === mode ? '0 1px 2px rgba(0,0,0,.08)' : 'none' }}>
+                  <span>{mode === 'list' ? '☰' : '📍'}</span>{mode}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Skeleton cards while loading */}
@@ -1810,8 +1908,39 @@ export default function ExplorePage() {
             </div>
           )}
 
-          {/* Cards */}
-          {!loading && !noResults && visible.length > 0 && (
+          {/* Map view */}
+          {viewMode === 'map' && !loading && !noResults && visible.length > 0 && (
+            <div style={{ position: 'relative', margin: '0 0 8px' }}>
+              <div ref={mapDivRef} style={{ height: 'min(68vh, 540px)', minHeight: 360, width: '100%', background: '#e7ede8' }} />
+              {selectedPin && (
+                <Link to={'/restaurant/' + selectedPin.id} style={{ textDecoration: 'none', color: 'inherit' }}>
+                  <div style={{ position: 'absolute', left: 12, right: 12, bottom: 12, zIndex: 500,
+                    background: '#fff', borderRadius: 14, border: '1px solid #fde3d5',
+                    padding: '11px 12px', display: 'flex', gap: 11, alignItems: 'center',
+                    boxShadow: '0 4px 16px rgba(0,0,0,.14)' }}>
+                    <div style={{ width: 46, height: 46, borderRadius: 11, background: '#fff3ee',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 24, flexShrink: 0 }}>{selectedPin.emoji || '🍽️'}</div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: '#111827', whiteSpace: 'nowrap',
+                        overflow: 'hidden', textOverflow: 'ellipsis' }}>{selectedPin.name}</div>
+                      <div style={{ fontSize: 11, color: '#6b7280', margin: '2px 0' }}>
+                        {selectedPin.cuisine}{selectedPin.city ? ' · ' + selectedPin.city + ', ' + selectedPin.state : ''}
+                      </div>
+                      <div style={{ fontSize: 11, color: '#f57b46', fontWeight: 600 }}>View details →</div>
+                    </div>
+                    <button onClick={(e) => { e.preventDefault(); setSelectedPin(null) }}
+                      style={{ background: '#f3f4f6', border: 'none', borderRadius: '50%',
+                        width: 26, height: 26, cursor: 'pointer', color: '#6b7280',
+                        flexShrink: 0, fontSize: 13, lineHeight: 1 }}>✕</button>
+                  </div>
+                </Link>
+              )}
+            </div>
+          )}
+
+          {/* Cards (list view) */}
+          {viewMode === 'list' && !loading && !noResults && visible.length > 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '0 16px 16px' }}>
               {visible.map((r, i) => {
                 const verifiedAms = (r.amenities || []).filter(a => a.yes_votes >= 1 && a.yes_votes >= a.no_votes)
