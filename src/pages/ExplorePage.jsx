@@ -1570,6 +1570,21 @@ export default function ExplorePage() {
   const noResults = hasSearched && term && !loading && restaurants.length > 0 && visible.length === 0
   const visibleKey = visible.map(r => r.id).join('|')
 
+  // Every restaurant for the map (all areas), filtered only by amenity + cuisine — not by the town/radius search
+  const mapRestaurants = restaurants.filter(r => {
+    if (activeFilters.size) {
+      const ok = [...activeFilters].every(f =>
+        (r.amenities || []).some(a => a.amenity_key === f && a.yes_votes > a.no_votes)
+      )
+      if (!ok) return false
+    }
+    if (activeCuisines.size) {
+      if (!activeCuisines.has((r.cuisine || '').trim())) return false
+    }
+    return true
+  })
+  const mapKey = mapRestaurants.map(r => r.id).join('|')
+
   // Build / update the Leaflet map when the user is in map view
   useEffect(() => {
     if (viewMode !== 'map') {
@@ -1581,34 +1596,33 @@ export default function ExplorePage() {
       if (cancelled || viewMode !== 'map' || !mapDivRef.current) return
       if (!mapRef.current) {
         mapRef.current = L.map(mapDivRef.current)
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          maxZoom: 19, attribution: '© OpenStreetMap contributors'
+        // Clean, minimal light basemap (much less busy than standard OpenStreetMap)
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+          maxZoom: 19, subdomains: 'abcd', attribution: '© OpenStreetMap, © CARTO'
         }).addTo(mapRef.current)
         markersRef.current = L.layerGroup().addTo(mapRef.current)
       }
       const map = mapRef.current
       const layer = markersRef.current
       layer.clearLayers()
+      // One uniform branded pin: fork on the Little Foodies orange
+      const pinSvg = '<svg width="28" height="36" viewBox="0 0 28 36" xmlns="http://www.w3.org/2000/svg" style="transform:translate(-50%,-100%);filter:drop-shadow(0 1px 2px rgba(0,0,0,.35))"><path d="M14 0C6.3 0 0 6.3 0 14c0 9.2 14 22 14 22s14-12.8 14-22C28 6.3 21.7 0 14 0z" fill="#f57b46"/><g fill="#fff"><rect x="10.75" y="6.5" width="1.5" height="6" rx="0.7"/><rect x="13.25" y="6.5" width="1.5" height="6" rx="0.7"/><rect x="15.75" y="6.5" width="1.5" height="6" rx="0.7"/><rect x="10.75" y="11.3" width="6.5" height="1.6" rx="0.8"/><rect x="13.25" y="12.5" width="1.5" height="9" rx="0.7"/></g></svg>'
+      const icon = L.divIcon({ className: 'lf-pin', html: pinSvg, iconSize: [0, 0], iconAnchor: [0, 0] })
       const pts = []
-      visible.forEach(r => {
+      mapRestaurants.forEach(r => {
         const pos = restaurantCoords(r)
         if (!pos) return
         pts.push(pos)
-        const icon = L.divIcon({
-          className: 'lf-pin',
-          html: '<div style="font-size:22px;line-height:1;transform:translate(-50%,-100%);width:max-content;filter:drop-shadow(0 1px 1px rgba(0,0,0,.35))">' + (r.emoji || '🍽️') + '</div>',
-          iconSize: [0, 0], iconAnchor: [0, 0],
-        })
         L.marker(pos, { icon }).addTo(layer).on('click', () => setSelectedPin(r))
       })
       if (pts.length === 1) map.setView(pts[0], 14)
       else if (pts.length > 1) map.fitBounds(pts, { padding: [40, 40] })
-      else if (searchCenter) map.setView(searchCenter, 12)
-      else map.setView([40.7, -74.25], 10)
+      else if (searchCenter) map.setView(searchCenter, 11)
+      else map.setView([39.5, -76], 6)
       setTimeout(() => { if (!cancelled && mapRef.current) mapRef.current.invalidateSize() }, 120)
     }).catch(() => {})
     return () => { cancelled = true }
-  }, [viewMode, visibleKey, searchCenter])
+  }, [viewMode, mapKey])
 
   // Tear the map down if the page unmounts
   useEffect(() => () => { if (mapRef.current) { mapRef.current.remove(); mapRef.current = null } }, [])
@@ -1834,7 +1848,9 @@ export default function ExplorePage() {
               textTransform: 'uppercase', letterSpacing: '.06em', minWidth: 0 }}>
               {loading
                 ? 'Loading restaurants...'
-                : visible.length + ' restaurant' + (visible.length !== 1 ? 's' : '') + ' within ' + radius + ' miles of ' + search}
+                : viewMode === 'map'
+                  ? mapRestaurants.length + ' restaurant' + (mapRestaurants.length !== 1 ? 's' : '') + ' across all areas'
+                  : visible.length + ' restaurant' + (visible.length !== 1 ? 's' : '') + ' within ' + radius + ' miles of ' + search}
             </div>
             <div style={{ display: 'flex', background: '#f3f4f6', borderRadius: 9, padding: 2, flexShrink: 0 }}>
               {['list', 'map'].map(mode => (
@@ -1883,7 +1899,7 @@ export default function ExplorePage() {
           )}
 
           {/* No results */}
-          {noResults && (
+          {viewMode === 'list' && noResults && (
             <div style={{ margin: '0 16px', background: '#fff', border: '0.5px solid #e5e7eb',
               borderRadius: 14, padding: '32px 20px', textAlign: 'center' }}>
               <div style={{ fontSize: 48, marginBottom: 12 }}>🗺️</div>
@@ -1909,7 +1925,7 @@ export default function ExplorePage() {
           )}
 
           {/* Map view */}
-          {viewMode === 'map' && !loading && !noResults && visible.length > 0 && (
+          {viewMode === 'map' && !loading && restaurants.length > 0 && (
             <div style={{ position: 'relative', margin: '0 0 8px' }}>
               <div ref={mapDivRef} style={{ height: 'min(68vh, 540px)', minHeight: 360, width: '100%', background: '#e7ede8' }} />
               {selectedPin && (
